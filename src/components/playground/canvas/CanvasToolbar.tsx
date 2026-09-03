@@ -1,0 +1,458 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Undo2,
+  Redo2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Save,
+  Eye,
+  Code2,
+  LayoutGrid,
+  BookOpen,
+  ChevronDown,
+  Sparkles,
+  Check,
+  Search,
+  ExternalLink,
+} from 'lucide-react';
+import { Button } from '../../ui/Button';
+import { Tabs } from '../../ui/Tabs';
+import { Tooltip } from '../../ui/Tooltip';
+import { PlaygroundView } from '../../../constants/enums';
+import { t } from '../../../i18n/i18n';
+import { TUTORIAL_PROJECTS } from '../tutorials/tutorialConfigs';
+
+export interface CanvasToolbarProps {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  zoom: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  onReset: () => void;
+  onSave: () => void;
+  onLoadTutorial: (tutorialKey: string) => void;
+  activeView: 'builder' | 'canvas' | 'code' | 'preview';
+  onViewChange: (view: 'builder' | 'canvas' | 'code' | 'preview') => void;
+  isLeftCollapsed?: boolean;
+  onToggleLeftPanel?: () => void;
+  isRightCollapsed?: boolean;
+  onToggleRightPanel?: () => void;
+}
+
+export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+  onReset,
+  onSave,
+  onLoadTutorial,
+  activeView,
+  onViewChange,
+  isLeftCollapsed,
+  onToggleLeftPanel,
+  isRightCollapsed,
+  onToggleRightPanel,
+}) => {
+  // Custom Dropdown State
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [presetSearch, setPresetSearch] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isDropdownOpen]);
+
+  const allPresets = Object.values(TUTORIAL_PROJECTS);
+
+  const filteredPresets = allPresets.filter((p) => {
+    if (!presetSearch) return true;
+    const q = presetSearch.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(q) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q)) ||
+      (p.hooks && p.hooks.some((h) => h.toLowerCase().includes(q)))
+    );
+  });
+
+  // Group by category
+  const groupedPresets = filteredPresets.reduce((acc, p) => {
+    const cat = p.category || 'General';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(p);
+    return acc;
+  }, {} as Record<string, typeof allPresets>);
+
+  const handleSelectPreset = (presetId: string) => {
+    onLoadTutorial(presetId);
+    setIsDropdownOpen(false);
+  };
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 16px',
+        backgroundColor: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-subtle)',
+        gap: '12px',
+        flexWrap: 'wrap',
+        zIndex: 25,
+        position: 'relative',
+      }}
+      className="canvas-toolbar"
+    >
+      {/* Left: View Tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Tabs
+          items={[
+            { id: PlaygroundView.BUILDER, label: t('playground.toolbar.visualBuilderTab'), icon: <LayoutGrid size={14} /> },
+            {
+              id: PlaygroundView.PREVIEW,
+              label: t('playground.toolbar.livePreviewTab'),
+              icon: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span
+                    style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--accent-success)',
+                      boxShadow: '0 0 6px var(--accent-success)',
+                    }}
+                  />
+                  <Eye size={14} />
+                </div>
+              ),
+            },
+            { id: PlaygroundView.CODE, label: t('playground.toolbar.generatedCodeTab'), icon: <Code2 size={14} /> },
+          ]}
+          activeId={activeView === PlaygroundView.CANVAS ? PlaygroundView.BUILDER : activeView}
+          onChange={(id) => onViewChange(id as any)}
+          variant="pills"
+          size="sm"
+        />
+
+        <div
+          className="hide-mobile"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '11px',
+            color: 'var(--text-muted)',
+            borderLeft: '1px solid var(--border-subtle)',
+            paddingLeft: '10px',
+            userSelect: 'none',
+          }}
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--accent-success)',
+              boxShadow: '0 0 6px var(--accent-success)',
+            }}
+          />
+          <span>{t('playground.toolbar.liveUpdateBadge')}</span>
+        </div>
+      </div>
+
+      {/* Center: History & Zoom */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <Tooltip content={t('playground.toolbar.undoTooltip')} shortcut="⌘Z" placement="bottom">
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={!canUndo}
+            icon={<Undo2 size={13} />}
+            onClick={onUndo}
+          />
+        </Tooltip>
+        <Tooltip content={t('playground.toolbar.redoTooltip')} shortcut="⌘⇧Z" placement="bottom">
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={!canRedo}
+            icon={<Redo2 size={13} />}
+            onClick={onRedo}
+          />
+        </Tooltip>
+
+        <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-subtle)', margin: '0 4px' }} />
+
+        <Tooltip content={t('playground.toolbar.zoomOutTooltip')} placement="bottom">
+          <Button size="xs" variant="ghost" icon={<ZoomOut size={13} />} onClick={onZoomOut} />
+        </Tooltip>
+        <Tooltip content={t('playground.toolbar.zoomResetTooltip')} placement="bottom">
+          <span
+            onClick={onZoomReset}
+            style={{
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              padding: '2px 6px',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+            }}
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+        </Tooltip>
+        <Tooltip content={t('playground.toolbar.zoomInTooltip')} placement="bottom">
+          <Button size="xs" variant="ghost" icon={<ZoomIn size={13} />} onClick={onZoomIn} />
+        </Tooltip>
+      </div>
+
+      {/* Right: Custom UI Dropdown & Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Custom Presets Dropdown */}
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: isDropdownOpen ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+              border: `1px solid ${isDropdownOpen ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            <BookOpen size={13} style={{ color: 'var(--accent-primary)' }} />
+            <span>Load Preset</span>
+            <ChevronDown size={13} style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 150ms ease' }} />
+          </button>
+
+          {/* Floating Dropdown Menu Card */}
+          {isDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                width: '360px',
+                maxHeight: '480px',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: '0 12px 36px rgba(0, 0, 0, 0.45)',
+                padding: '8px',
+                zIndex: 50,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                backdropFilter: 'blur(16px)',
+              }}
+            >
+              {/* Header & Gallery Link */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '4px 6px 8px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                    REAL-TIME ARCHITECTURES ({allPresets.length})
+                  </span>
+                </div>
+                <a
+                  href="#examples"
+                  onClick={() => setIsDropdownOpen(false)}
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: 'var(--accent-primary)',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span>Gallery Page</span>
+                  <ExternalLink size={11} />
+                </a>
+              </div>
+
+              {/* Inline Search Input */}
+              <div style={{ position: 'relative' }}>
+                <Search
+                  size={13}
+                  style={{
+                    position: 'absolute',
+                    left: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={presetSearch}
+                  onChange={(e) => setPresetSearch(e.target.value)}
+                  placeholder="Search 25 architectures or hooks..."
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px 6px 26px',
+                    fontSize: '11px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              {/* Scrollable Grouped Items */}
+              <div
+                style={{
+                  overflowY: 'auto',
+                  maxHeight: '350px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  paddingRight: '2px',
+                }}
+              >
+                {Object.keys(groupedPresets).length === 0 ? (
+                  <div style={{ padding: '16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    No architectures matching &quot;{presetSearch}&quot;
+                  </div>
+                ) : (
+                  Object.entries(groupedPresets).map(([category, items]) => (
+                    <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <span
+                        style={{
+                          fontSize: '9.5px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          color: 'var(--text-muted)',
+                          padding: '4px 6px 2px',
+                        }}
+                      >
+                        {category} ({items.length})
+                      </span>
+                      {items.map((preset) => (
+                        <div
+                          key={preset.id}
+                          onClick={() => handleSelectPreset(preset.id)}
+                          style={{
+                            padding: '7px 9px',
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            backgroundColor: 'transparent',
+                            transition: 'background-color var(--transition-fast)',
+                            border: '1px solid transparent',
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-surface-elevated)';
+                            (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)';
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                            (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {preset.name}
+                            </span>
+                            {preset.difficulty && (
+                              <span
+                                style={{
+                                  fontSize: '9px',
+                                  padding: '1px 5px',
+                                  borderRadius: 'var(--radius-xs)',
+                                  backgroundColor: 'var(--bg-surface-elevated)',
+                                  color: 'var(--text-muted)',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {preset.difficulty}
+                              </span>
+                            )}
+                          </div>
+                          {preset.hooks && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                              {preset.hooks.map((h) => (
+                                <span
+                                  key={h}
+                                  style={{
+                                    fontSize: '8.5px',
+                                    fontFamily: 'var(--font-mono)',
+                                    padding: '1px 4px',
+                                    borderRadius: 'var(--radius-xs)',
+                                    backgroundColor: 'var(--accent-primary-subtle)',
+                                    color: 'var(--accent-primary-text)',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {h}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                            {preset.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Tooltip content={t('playground.toolbar.saveTooltip')} placement="bottom">
+          <Button size="xs" variant="secondary" icon={<Save size={13} />} onClick={onSave}>
+            {t('common.save')}
+          </Button>
+        </Tooltip>
+        <Tooltip content={t('playground.toolbar.resetTooltip')} placement="bottom">
+          <Button size="xs" variant="ghost" icon={<RotateCcw size={13} />} onClick={onReset}>
+            {t('common.reset')}
+          </Button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+};
