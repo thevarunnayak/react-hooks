@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   LESSON_PROGRESS: 'react-hooks-lesson-progress',
   CHALLENGE_SUBMISSIONS: 'react-hooks-challenge-submissions',
   CUSTOM_HOOK_PROGRESS: 'react-hooks-custom-progress',
+  NOTES_TABLE: 'react-hooks-notes-table',
 } as const;
 
 export type StorageKey = typeof STORAGE_KEYS[keyof typeof STORAGE_KEYS];

@@ -75,6 +75,23 @@ export function generateReactCode(
       reactHooksUsed.add('useLayoutEffect');
       const deps = node.props.deps?.join(', ') || '';
       hookDeclarations.push(`  useLayoutEffect(() => {\n    // Synchronous layout calculation before browser repaint\n  }, [${deps}]);`);
+    } else if (node.subtype === 'useDeferredValue') {
+      reactHooksUsed.add('useDeferredValue');
+      const valName = node.props.stateName || 'query';
+      hookDeclarations.push(`  // Defers expensive result rendering without delaying urgent typing input\n  const deferred${valName.charAt(0).toUpperCase() + valName.slice(1)} = useDeferredValue(${valName});`);
+    } else if (node.subtype === 'useOptimistic') {
+      reactHooksUsed.add('useOptimistic');
+      const stateName = node.props.stateName || 'item';
+      hookDeclarations.push(`  // Optimistic UI state updated immediately before server roundtrip\n  const [optimistic${stateName.charAt(0).toUpperCase() + stateName.slice(1)}, setOptimistic${stateName.charAt(0).toUpperCase() + stateName.slice(1)}] = useOptimistic(\n    ${stateName},\n    (current, update) => ({ ...current, ...update })\n  );`);
+    } else if (node.subtype === 'useActionState') {
+      reactHooksUsed.add('useActionState');
+      hookDeclarations.push(`  // Manages async form action pipeline state, validation errors, and pending status\n  const [formState, formAction, isFormPending] = useActionState(async (prev, formData) => {\n    return await handleFormSubmit(formData);\n  }, null);`);
+    } else if (node.subtype === 'useFormStatus') {
+      reactHooksUsed.add('useFormStatus');
+      hookDeclarations.push(`  // Reads parent <form> submission status without prop drilling\n  const { pending, data, method, action } = useFormStatus();`);
+    } else if (node.subtype === 'useSyncExternalStore') {
+      reactHooksUsed.add('useSyncExternalStore');
+      hookDeclarations.push(`  // Subscribes to external store with tearing prevention\n  const storeSnapshot = useSyncExternalStore(\n    externalStore.subscribe,\n    externalStore.getSnapshot,\n    externalStore.getServerSnapshot\n  );`);
     }
   });
 
@@ -258,18 +275,97 @@ export function generateReactCode(
     }
 
     if (node.subtype === 'Card' || node.subtype === 'Container') {
-      if (node.props.variant === 'cart') {
+      const variant = node.props.variant as string;
+      const title = node.props.title || node.label || 'Card';
+
+      if (variant === 'cart') {
         return `${indent}{/* Shopping Cart Items & Discount Summary */}\n${indent}<div className="cart-card">\n${indent}  <h3>Your Shopping Cart</h3>\n${indent}  <p>Items in Cart: {state}</p>\n${indent}  <div className="cart-summary">\n${indent}    <p>10% VIP Discount Applied (useMemo)</p>\n${indent}    <h4>Total: \${memoizedValue.toFixed(2)}</h4>\n${indent}  </div>\n${indent}</div>`;
       }
-      if (node.props.variant === 'themeConsumer') {
+      if (variant === 'themeConsumer') {
         return `${indent}{/* Deep Child Component consuming ThemeContext directly (0 props drilled) */}\n${indent}<div className={\`themed-profile-card \${theme === 'dark' ? 'theme-dark' : 'theme-light'}\`}>\n${indent}  <div className="card-header">\n${indent}    <h4>Alex Rivera</h4>\n${indent}    <span className="badge">useContext(ThemeContext)</span>\n${indent}  </div>\n${indent}  <p>Active Palette: {theme.toUpperCase()} (0 props drilled)</p>\n${indent}</div>`;
       }
+      if (variant === 'optimisticProduct') {
+        return `${indent}{/* Optimistic Product Showcase (useOptimistic + useTransition) */}\n${indent}<div className="product-showcase-card">\n${indent}  <div className="product-header">\n${indent}    <h3>${title}</h3>\n${indent}    <span className="badge">\${(optimisticItem?.isFav ?? false) ? '❤️ Favorite' : '🤍 Add to Wishlist'}</span>\n${indent}  </div>\n${indent}  <p className="qty-label">Quantity in Bag: {optimisticItem?.qty ?? 1}</p>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => startTransition(async () => {\n${indent}      setOptimisticItem({ isFav: !optimisticItem?.isFav });\n${indent}      await api.toggleFavorite(!optimisticItem?.isFav);\n${indent}    })}>Toggle Favorite</button>\n${indent}    <button className="btn-secondary" onClick={() => startTransition(async () => {\n${indent}      setOptimisticItem({ qty: (optimisticItem?.qty ?? 1) + 1 });\n${indent}      await api.updateQuantity((optimisticItem?.qty ?? 1) + 1);\n${indent}    })}>Add Quantity (+1)</button>\n${indent}  </div>\n${indent}  {isPending && <span className="sync-badge">Syncing with server in background...</span>}\n${indent}</div>`;
+      }
+      if (variant === 'formActionPipeline') {
+        return `${indent}{/* Async Form Action Pipeline (useActionState + useFormStatus) */}\n${indent}<form action={formAction} className="action-pipeline-form">\n${indent}  <h3>${title}</h3>\n${indent}  <input name="email" type="email" placeholder="architect@enterprise.io" required />\n${indent}  {formState?.error && <div className="error-alert">{formState.error}</div>}\n${indent}  <button type="submit" disabled={isFormPending} className="btn-primary">\n${indent}    {isFormPending ? 'Validating on Server...' : 'Submit Action'}\n${indent}  </button>\n${indent}</form>`;
+      }
+      if (variant === 'deferredSearch') {
+        return `${indent}{/* Deferred Search Results Grid (useDeferredValue + useMemo) */}\n${indent}<div className="deferred-search-container">\n${indent}  <div className="grid-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">10,000 Components Synced</span>\n${indent}  </div>\n${indent}  <div className="results-grid" style={{ opacity: query !== deferredQuery ? 0.6 : 1, transition: 'opacity 150ms ease' }}>\n${indent}    {filteredList.map((item) => (\n${indent}      <div key={item.id} className="grid-item">\n${indent}        <strong>{item.name}</strong>\n${indent}        <span>{item.category}</span>\n${indent}      </div>\n${indent}    ))}\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'externalStore') {
+        return `${indent}{/* External Store Subscription (useSyncExternalStore) */}\n${indent}<div className="external-store-card">\n${indent}  <h3>${title}</h3>\n${indent}  <p>Live Store Snapshot: <strong>{storeSnapshot?.count ?? 42}</strong> (v{storeSnapshot?.version ?? 1})</p>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => externalStore.mutate(5)}>Mutate External (+5)</button>\n${indent}    <button className="btn-outline" onClick={() => externalStore.reset()}>Reset Store</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'websocketDashboard') {
+        return `${indent}{/* Real-Time WebSocket Telemetry (useRef + useReducer + useEffect) */}\n${indent}<div className="websocket-dashboard">\n${indent}  <div className="stream-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge badge-success">● CONNECTED (12ms ping)</span>\n${indent}  </div>\n${indent}  <div className="packet-stream">\n${indent}    {(state?.packets || [\n${indent}      { seq: 104, sensor: 'US-East-Rack-4', temp: 42.1 },\n${indent}      { seq: 105, sensor: 'EU-West-Rack-1', temp: 39.8 },\n${indent}    ]).map((pkt) => (\n${indent}      <div key={pkt.seq} className="packet-row">\n${indent}        <span>{pkt.sensor}</span>\n${indent}        <strong>{pkt.temp}°C</strong>\n${indent}      </div>\n${indent}    ))}\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-danger" onClick={() => dispatch({ type: 'WS_DISCONNECTED' })}>Drop Connection 🔌</button>\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'WS_CONNECTED' })}>Force Reconnect 🔄</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'collabPresence') {
+        return `${indent}{/* Collaborative Editor Presence (useReducer) */}\n${indent}<div className="collab-document-card">\n${indent}  <div className="doc-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Active Peers: {typeof state === 'number' ? state : 3}</span>\n${indent}  </div>\n${indent}  <textarea defaultValue="React hooks enable declarative synchronization with external side-effects." rows={4} />\n${indent}  <div className="button-group">\n${indent}    <button className="btn-secondary" onClick={() => dispatch({ type: 'PEER_TYPING' })}>Simulate Peer Typing</button>\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'PEER_JOINED' })}>+ Simulate Peer Join</button>\n${indent}    <button className="btn-outline" onClick={() => dispatch({ type: 'PEER_LEFT' })}>Disconnect Peer</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'raceController') {
+        return `${indent}{/* Network Request Race Controller (useRef + useReducer) */}\n${indent}<div className="race-controller-card">\n${indent}  <div className="race-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge badge-success">✓ Race Guard: ACTIVE</span>\n${indent}  </div>\n${indent}  <div className="committed-display">\n${indent}    <p>Committed State: <strong>{state?.activeResult || 'Initial Stable Payload'}</strong></p>\n${indent}  </div>\n${indent}  <button className="btn-primary" onClick={() => dispatch({ type: 'REQUEST_START' })}>\n${indent}    Trigger Out-Of-Order Race Burst ⚡\n${indent}  </button>\n${indent}</div>`;
+      }
+      if (variant === 'paginatedGrid') {
+        return `${indent}{/* Enterprise Paginated Data Grid (useState + useMemo) */}\n${indent}<div className="paginated-grid-container">\n${indent}  <div className="grid-toolbar">\n${indent}    <input type="text" placeholder="Filter events by keyword..." />\n${indent}    <select defaultValue="ALL">\n${indent}      <option value="ALL">All Severities</option>\n${indent}      <option value="OK">OK</option>\n${indent}      <option value="WARN">WARN</option>\n${indent}      <option value="CRIT">CRIT</option>\n${indent}    </select>\n${indent}  </div>\n${indent}  <table className="data-table">\n${indent}    <thead>\n${indent}      <tr><th>ID</th><th>Severity</th><th>Event Message</th><th>Latency</th></tr>\n${indent}    </thead>\n${indent}    <tbody>\n${indent}      {(paginatedRows || [\n${indent}        { id: 'EV-101', severity: 'OK', msg: 'Auth token renewed', latency: '4ms' },\n${indent}        { id: 'EV-102', severity: 'WARN', msg: 'Disk cache 85% full', latency: '22ms' },\n${indent}        { id: 'EV-103', severity: 'CRIT', msg: 'DB connection pool timeout', latency: '142ms' },\n${indent}      ]).map((row) => (\n${indent}        <tr key={row.id}>\n${indent}          <td>{row.id}</td>\n${indent}          <td><span className={\`badge badge-\${row.severity.toLowerCase()}\`}>{row.severity}</span></td>\n${indent}          <td>{row.msg}</td>\n${indent}          <td>{row.latency}</td>\n${indent}        </tr>\n${indent}      ))}\n${indent}    </tbody>\n${indent}  </table>\n${indent}  <div className="pagination-footer">\n${indent}    <button className="btn-outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</button>\n${indent}    <span>Page {page} of 100</span>\n${indent}    <button className="btn-outline" onClick={() => setPage((p) => p + 1)}>Next →</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'virtualizedFeed') {
+        return `${indent}{/* Virtualized Activity Feed Windowing (useRef + useMemo) */}\n${indent}<div className="virtualized-feed-card">\n${indent}  <div className="feed-header">\n${indent}    <h4>${title}</h4>\n${indent}    <button className="btn-secondary" onClick={() => { viewportRef.current = 5000; }}>Jump to #5,000</button>\n${indent}  </div>\n${indent}  <div className="scroll-window">\n${indent}    {(visibleItems || [\n${indent}      { id: 1, title: 'Item #0 - Kernel Cluster Initialized', time: '00:00:01' },\n${indent}      { id: 2, title: 'Item #1 - Load Balancer Synchronized', time: '00:00:02' },\n${indent}      { id: 3, title: 'Item #2 - Cache Invalidation Flushed', time: '00:00:03' },\n${indent}    ]).map((item) => (\n${indent}      <div key={item.id} className="feed-row">\n${indent}        <span>{item.title}</span>\n${indent}        <span className="timestamp">{item.time}</span>\n${indent}      </div>\n${indent}    ))}\n${indent}  </div>\n${indent}  <p className="window-footer">Rendering 15 of 10,000 active nodes (0 DOM jank)</p>\n${indent}</div>`;
+      }
+      if (variant === 'dndKanban') {
+        return `${indent}{/* Drag & Drop Sprint Board (useReducer) */}\n${indent}<div className="kanban-engine-card">\n${indent}  <div className="kanban-header">\n${indent}    <h3>${title}</h3>\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'ADD_CARD', col: 'Backlog', title: 'New Task' })}>+ Add Card</button>\n${indent}  </div>\n${indent}  <div className="kanban-columns">\n${indent}    {['Backlog', 'Development', 'Production'].map((col) => (\n${indent}      <div key={col} className="kanban-column">\n${indent}        <h4>{col}</h4>\n${indent}        <div className="task-ticket">\n${indent}          <p>Implement {col} Architecture</p>\n${indent}          <button className="btn-xs" onClick={() => dispatch({ type: 'MOVE_CARD', col })}>Move →</button>\n${indent}        </div>\n${indent}      </div>\n${indent}    ))}\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'commandPalette') {
+        return `${indent}{/* Keyboard Command Palette (useEffect + useState) */}\n${indent}<div className="command-palette-view">\n${indent}  <div className="palette-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Press ⌘K or Esc anytime</span>\n${indent}  </div>\n${indent}  <input type="text" placeholder="Search commands, files, or actions..." className="palette-search" />\n${indent}  <ul className="palette-list">\n${indent}    {['Deploy to Production', 'Toggle Dark Theme', 'Export Profiler Log', 'System Settings'].map((cmd, idx) => (\n${indent}      <li key={cmd} className={\`palette-item \${highlightedIndex === idx ? 'highlighted' : ''}\`}>\n${indent}        <span>{cmd}</span>\n${indent}        <kbd>↵</kbd>\n${indent}      </li>\n${indent}    ))}\n${indent}  </ul>\n${indent}</div>`;
+      }
+      if (variant === 'undoableForm') {
+        return `${indent}{/* Undoable Form Editor (useReducer past/present/future) */}\n${indent}<div className="undoable-form-card">\n${indent}  <div className="history-toolbar">\n${indent}    <button className="btn-outline" onClick={() => dispatch({ type: 'UNDO' })}>↩️ Undo</button>\n${indent}    <button className="btn-outline" onClick={() => dispatch({ type: 'REDO' })}>↪️ Redo</button>\n${indent}    <span className="badge">History Stack Active</span>\n${indent}  </div>\n${indent}  <div className="form-fields">\n${indent}    <label>Full Name</label>\n${indent}    <input type="text" defaultValue={state?.present?.name ?? 'Elena Rostova'} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'name', value: e.target.value })} />\n${indent}    <label>Role / Title</label>\n${indent}    <input type="text" defaultValue={state?.present?.role ?? 'Principal Architect'} onChange={(e) => dispatch({ type: 'SET_FIELD', field: 'role', value: e.target.value })} />\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'multiSourceDashboard') {
+        return `${indent}{/* Multi-Source Dashboard (useReducer + Promise.allSettled) */}\n${indent}<div className="multi-source-dashboard">\n${indent}  <div className="hub-header">\n${indent}    <h3>${title}</h3>\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'FETCH_START' })}>Refresh All (allSettled)</button>\n${indent}  </div>\n${indent}  <div className="streams-grid">\n${indent}    {[\n${indent}      { name: 'User Profile API', status: 'READY', latency: '14ms' },\n${indent}      { name: 'Billing Gateway', status: 'DEGRADED', latency: '503ms' },\n${indent}      { name: 'Telemetry Collector', status: 'READY', latency: '8ms' },\n${indent}      { name: 'Push Dispatcher', status: 'READY', latency: '19ms' },\n${indent}    ].map((s) => (\n${indent}      <div key={s.name} className="stream-card">\n${indent}        <h4>{s.name}</h4>\n${indent}        <span className={\`badge badge-\${s.status.toLowerCase()}\`}>{s.status}</span>\n${indent}        <p>Latency: {s.latency}</p>\n${indent}      </div>\n${indent}    ))}\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'requestDedup') {
+        return `${indent}{/* Request Deduplication Cache (useRef Map) */}\n${indent}<div className="request-dedup-card">\n${indent}  <div className="dedup-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">1 Network Call for 5 Listeners</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-secondary" onClick={() => inFlightPromises.current.set('key', fetch('/api/data'))}>Trigger 1 Call</button>\n${indent}    <button className="btn-primary" onClick={() => {\n${indent}      for (let i = 0; i < 5; i++) inFlightPromises.current.set('key', fetch('/api/data'));\n${indent}    }}>Burst 5 Concurrent Calls ⚡</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'resourceCacheTtl') {
+        return `${indent}{/* TTL Memory Cache with Expiration (useRef Map) */}\n${indent}<div className="ttl-cache-card">\n${indent}  <div className="cache-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge badge-success">Expires in 5s (FRESH)</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => ttlCache.current.get('QUOTE')}>Read Cache (0ms)</button>\n${indent}    <button className="btn-outline" onClick={() => ttlCache.current.delete('QUOTE')}>Force Invalidate 🔄</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'errorBoundaryRecovery') {
+        return `${indent}{/* Isolated Error Boundary Matrix (useState health map) */}\n${indent}<div className="error-boundary-matrix">\n${indent}  <div className="matrix-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">3 Isolated Subtrees Online</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-danger" onClick={() => setWidgetHealth((h) => ({ ...h, w2: false }))}>Simulate Crash 💥</button>\n${indent}    <button className="btn-primary" onClick={() => setWidgetHealth({ w1: true, w2: true, w3: true })}>Recover Widget 🔄</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'suspenseStreaming') {
+        return `${indent}{/* Suspense Streaming Dashboard (useTransition) */}\n${indent}<div className="suspense-streaming-card">\n${indent}  <div className="stream-header">\n${indent}    <h4>${title}</h4>\n${indent}    <button className="btn-primary" onClick={() => startStreamTransition(() => {})}>Replay Stream 🌊</button>\n${indent}  </div>\n${indent}  <div className="chunks-pipeline">\n${indent}    <div className="chunk">Fast Metrics: Ready (0ms)</div>\n${indent}    <div className="chunk">Analytics: Ready (400ms)</div>\n${indent}    <div className="chunk">AI Insights: Deferred (1200ms)</div>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'serverClientBoundary') {
+        return `${indent}{/* Server / Client Component Boundary (useState) */}\n${indent}<div className="server-client-boundary-card">\n${indent}  <div className="boundary-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Optimal RSC Island (0kb Client JS)</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => console.log('Serialized wire payload')}>Inspect Serialized Wire Payload 🔍</button>\n${indent}    <button className="btn-outline" onClick={() => setBoundaryMode((m) => m === 'optimal' ? 'error' : 'optimal')}>Toggle Boundary Mode</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'optimisticCheckout') {
+        return `${indent}{/* Optimistic Checkout Pipeline (useReducer + useOptimistic) */}\n${indent}<div className="optimistic-checkout-card">\n${indent}  <div className="checkout-summary">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Order Status: {receipt?.status ?? 'Ready to Checkout'}</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => {\n${indent}      setOptimisticReceipt({ status: 'Processing Order...' });\n${indent}      dispatch({ type: 'PLACE_ORDER' });\n${indent}    }}>Place Order ($249.00) ⚡</button>\n${indent}    <button className="btn-outline" onClick={() => dispatch({ type: 'RESET' })}>Reset Cart</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'offlineNotes') {
+        return `${indent}{/* Offline-First Notes Application (useRef + useReducer) */}\n${indent}<div className="offline-notes-card">\n${indent}  <div className="notes-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge badge-success">🟢 Network: ONLINE</span>\n${indent}  </div>\n${indent}  <input type="text" placeholder="Title for new note..." />\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'ADD_NOTE' })}>+ Write New Note</button>\n${indent}    <span>Pending Sync: {pendingSyncQueue.current?.length ?? 0} Actions</span>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'notificationSync') {
+        return `${indent}{/* Notification Center with Read/Unread Sync (useReducer) */}\n${indent}<div className="notification-center-card">\n${indent}  <div className="notif-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Unread: 3 Alerts</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-secondary" onClick={() => dispatch({ type: 'MARK_ALL_READ' })}>Mark All as Read</button>\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'PUSH_ALERT' })}>+ Push Event</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'collabCursorTracker') {
+        return `${indent}{/* Collaborative Cursor / Presence Tracker (useRef + useEffect rAF) */}\n${indent}<div className="collab-cursor-tracker-card">\n${indent}  <div className="tracker-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">144 Events / 16 Renders (89% Savings)</span>\n${indent}  </div>\n${indent}  <button className="btn-outline" onClick={() => console.log('Toggle 16ms rAF throttle')}>✓ 16ms rAF Throttle</button>\n${indent}</div>`;
+      }
+      if (variant === 'fileUploadManager') {
+        return `${indent}{/* Multipart File Upload Queue (useReducer) */}\n${indent}<div className="file-upload-manager-card">\n${indent}  <div className="upload-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">2 Uploading, 1 Completed</span>\n${indent}  </div>\n${indent}  <div className="button-group">\n${indent}    <button className="btn-primary" onClick={() => dispatch({ type: 'ADD_FILE' })}>+ Upload File</button>\n${indent}    <button className="btn-outline" onClick={() => dispatch({ type: 'PAUSE_UPLOAD' })}>Pause / Resume ▶️</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'featureFlagRuntime') {
+        return `${indent}{/* Feature Flag Runtime Engine (useSyncExternalStore) */}\n${indent}<div className="feature-flag-runtime-card">\n${indent}  <div className="flag-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="badge">Flags Synced via useSyncExternalStore</span>\n${indent}  </div>\n${indent}  <div className="flag-controls">\n${indent}    <select defaultValue="General User">\n${indent}      <option value="General User">General User</option>\n${indent}      <option value="Beta Tester">Beta Tester</option>\n${indent}      <option value="Enterprise Admin">Enterprise Admin</option>\n${indent}    </select>\n${indent}    <button className="btn-primary" onClick={() => console.log('Toggle AI Beta')}>Toggle AI Beta Flag</button>\n${indent}  </div>\n${indent}</div>`;
+      }
+      if (variant === 'performanceObservatory') {
+        return `${indent}{/* Production Performance Observatory (useMemo + useCallback) */}\n${indent}<div className="performance-observatory-card">\n${indent}  <div className="hud-header">\n${indent}    <h4>${title}</h4>\n${indent}    <span className="metrics-badge">254 Renders (82ms Frame)</span>\n${indent}  </div>\n${indent}  <div className="optimizations-grid">\n${indent}    <button className="btn-outline" onClick={() => console.log('Toggle Context Splitting')}>Split Context: OFF</button>\n${indent}    <button className="btn-outline" onClick={() => console.log('Toggle useMemo Filter')}>useMemo Filter: OFF</button>\n${indent}    <button className="btn-outline" onClick={() => console.log('Toggle useCallback Handler')}>useCallback Handler: OFF</button>\n${indent}    <button className="btn-outline" onClick={() => console.log('Toggle Isolate Search')}>Isolate Search State: OFF</button>\n${indent}  </div>\n${indent}  <div className="telemetry-view">\n${indent}    <input type="text" placeholder="Search telemetry logs..." />\n${indent}    <p>Monitoring render lifecycles & frame drops</p>\n${indent}  </div>\n${indent}</div>`;
+      }
+
       const childNodes = uiNodes.filter((c) => c.parentId === node.id);
       if (childNodes.length > 0) {
         const childrenJSX = childNodes.map((c) => buildUIJSX(c, indent + '  ')).join('\n');
-        return `${indent}<div className="card">\n${childrenJSX}\n${indent}</div>`;
+        return `${indent}<div className="card">\n${indent}  <div className="card-header"><h4>${title}</h4></div>\n${childrenJSX}\n${indent}</div>`;
       }
-      return `${indent}<div className="card">\n${indent}  ${formattedContent || 'Card Content'}\n${indent}</div>`;
+      return `${indent}<div className="card">\n${indent}  <h4>${title}</h4>\n${indent}  <p>${formattedContent || 'Card Content'}</p>\n${indent}</div>`;
     }
 
     if (node.subtype === 'Kanban') {
@@ -298,8 +394,16 @@ export function generateReactCode(
     ? `\n// Theme Context Definition\nexport const ThemeContext = createContext({\n  theme: 'dark',\n  toggleTheme: () => {},\n});\n`
     : '';
 
+  const reducerDef = reactHooksUsed.has('useReducer')
+    ? `\n// Reducer State Machine Definition\nfunction reducer(state: any, action: { type: string; [key: string]: any }) {\n  switch (action.type) {\n    default:\n      return state;\n  }\n}\n`
+    : '';
+
+  const storeDef = reactHooksUsed.has('useSyncExternalStore')
+    ? `\n// External Store Singleton\nconst externalStore = {\n  count: 42,\n  version: 1,\n  listeners: new Set<() => void>(),\n  getSnapshot: () => ({ count: externalStore.count, version: externalStore.version }),\n  getServerSnapshot: () => ({ count: externalStore.count, version: externalStore.version }),\n  subscribe: (listener: () => void) => {\n    externalStore.listeners.add(listener);\n    return () => externalStore.listeners.delete(listener);\n  },\n  mutate: (delta: number) => {\n    externalStore.count += delta;\n    externalStore.version += 1;\n    externalStore.listeners.forEach((l) => l());\n  },\n  reset: () => {\n    externalStore.count = 42;\n    externalStore.version += 1;\n    externalStore.listeners.forEach((l) => l());\n  },\n};\n`
+    : '';
+
   return `import React${importList} from 'react';
-${contextDef}
+${contextDef}${reducerDef}${storeDef}
 export function ${appName}() {
 ${hookDeclarations.join('\n\n')}
 

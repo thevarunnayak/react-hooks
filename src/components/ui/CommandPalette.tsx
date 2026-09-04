@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, BookOpen, Layers, Sparkles, CheckCircle2, HelpCircle } from 'lucide-react';
+import { Search, BookOpen, Layers, Sparkles, CheckCircle2, HelpCircle, Boxes, Award } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
 import { HOOKS_CATALOG } from '../../data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from '../../data/custom-hooks/catalog';
 import { CHALLENGES_LIST } from '../../data/challenges';
+import { INTERVIEW_QUESTIONS_LIST } from '../../data/interviews';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { type: 'page', title: 'Interactive Visual Component Builder', route: 'playground', icon: <Layers size={14} /> },
     { type: 'page', title: 'Visual React Hooks Map', route: 'hook-map', icon: <BookOpen size={14} /> },
     { type: 'page', title: 'Custom Hooks Library', route: 'custom-hooks', icon: <Sparkles size={14} /> },
-    { type: 'page', title: 'Tutorials with Break-It Mode', route: 'tutorials', icon: <BookOpen size={14} /> },
+    { type: 'page', title: 'Real-Time Architectures', route: 'examples', icon: <Boxes size={14} /> },
     { type: 'page', title: 'Interactive Challenges', route: 'challenges', icon: <CheckCircle2 size={14} /> },
     { type: 'page', title: 'Interview Preparation', route: 'interview', icon: <HelpCircle size={14} /> },
 
@@ -78,6 +79,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       route: 'challenges',
       param: ch.id,
       icon: <CheckCircle2 size={14} style={{ color: 'var(--accent-success)' }} />,
+    })),
+
+    // Senior Interview Questions
+    ...INTERVIEW_QUESTIONS_LIST.map((q) => ({
+      type: 'interview',
+      title: `Interview: ${q.question}`,
+      route: 'interview',
+      param: q.id,
+      icon: <Award size={14} style={{ color: 'var(--accent-purple)' }} />,
     })),
   ];
 

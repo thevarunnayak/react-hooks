@@ -9,16 +9,14 @@ import {
   Check,
   Sparkles,
   AlertTriangle,
-  CheckCircle2,
   Code2,
   Layers,
-  Save,
-  Edit3,
   Lightbulb,
   TestTube,
   Bookmark,
 } from 'lucide-react';
 import { CustomHookInteractiveLab } from '../components/labs/custom-hooks/CustomHookInteractiveLab';
+import { PersonalNotesSection } from '../components/notes/PersonalNotesSection';
 
 export interface CustomHookDetailPageProps {
   hook: CustomHookItem;
@@ -33,33 +31,29 @@ export const CustomHookDetailPage: React.FC<CustomHookDetailPageProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const [testCopied, setTestCopied] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [noteSaved, setNoteSaved] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-
-  // Load and save personal notes & bookmarks in localStorage
-  useEffect(() => {
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(() => {
     try {
-      const allNotes = JSON.parse(localStorage.getItem('react_hooks_custom_notes') || '{}');
-      setNoteText(allNotes[hook.id] || '');
       const bookmarks = JSON.parse(localStorage.getItem('react_hooks_custom_bookmarks') || '[]');
-      setIsBookmarked(bookmarks.includes(hook.id));
+      return bookmarks.includes(hook.id);
     } catch {
-      setNoteText('');
+      return false;
     }
-  }, [hook.id]);
+  });
 
-  const saveNote = () => {
-    try {
-      const allNotes = JSON.parse(localStorage.getItem('react_hooks_custom_notes') || '{}');
-      allNotes[hook.id] = noteText;
-      localStorage.setItem('react_hooks_custom_notes', JSON.stringify(allNotes));
-      setNoteSaved(true);
-      setTimeout(() => setNoteSaved(false), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  // Sync bookmarks from localStorage
+  useEffect(() => {
+    const syncBookmark = () => {
+      try {
+        const bookmarks = JSON.parse(localStorage.getItem('react_hooks_custom_bookmarks') || '[]');
+        setIsBookmarked(bookmarks.includes(hook.id));
+      } catch {
+        setIsBookmarked(false);
+      }
+    };
+    syncBookmark();
+    window.addEventListener('local-storage', syncBookmark);
+    return () => window.removeEventListener('local-storage', syncBookmark);
+  }, [hook.id]);
 
   const toggleBookmark = () => {
     try {
@@ -400,41 +394,8 @@ describe('${hook.name}', () => {
         </pre>
       </Card>
 
-      {/* 9. Personal Notes (Stored Locally) */}
-      <Card variant="glass" padding="md" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Edit3 size={15} style={{ color: 'var(--accent-primary)' }} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-              My Personal Notes for {hook.name}() (Stored Locally)
-            </span>
-          </div>
-          <Button
-            size="xs"
-            variant="primary"
-            icon={<Save size={12} />}
-            onClick={saveNote}
-          >
-            {noteSaved ? 'Saved' : 'Save Note'}
-          </Button>
-        </div>
-
-        <textarea
-          value={noteText}
-          onChange={(e) => setNoteText(e.target.value)}
-          placeholder={`Write personal observations about ${hook.name}() here. Automatically stored in your browser...`}
-          rows={3}
-          style={{
-            padding: '10px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--text-primary)',
-            resize: 'vertical',
-          }}
-        />
-      </Card>
+      {/* 9. Personal Notes (Stored in unified Notes Table with ID) */}
+      <PersonalNotesSection targetId={hook.id} targetName={`${hook.name}()`} />
 
       {/* 10. Key Takeaway */}
       <div

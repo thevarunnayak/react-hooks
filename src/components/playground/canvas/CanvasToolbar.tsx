@@ -321,7 +321,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
                   type="text"
                   value={presetSearch}
                   onChange={(e) => setPresetSearch(e.target.value)}
-                  placeholder="Search 25 architectures or hooks..."
+                  placeholder={`Search ${allPresets.length} architectures or hooks...`}
                   autoFocus
                   style={{
                     width: '100%',

@@ -9,12 +9,46 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-default);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-strong);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Unobtrusive, elegant horizontal scrollbar for filter pills */
+.pill-scrollbar {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scroll-behavior: smooth;
+}
+
+.pill-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pill-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pill-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+.pill-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+/* Hide scrollbar while preserving scrollability */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Glassmorphic Surfaces */

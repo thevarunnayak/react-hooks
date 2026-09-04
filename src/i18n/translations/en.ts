@@ -35,8 +35,8 @@ export const en = {
   },
 
   header: {
-    title: 'React Hooks Lab',
-    subtitle: 'Interactive Learning & Architecture Studio',
+    title: 'ReactLabz',
+    subtitle: 'Interactive React Hooks Studio & Visual Architecture Lab',
     searchPlaceholder: 'Search hooks, labs, topics...',
     searchShortcut: '⌘K',
     searchMobileLabel: 'Search',

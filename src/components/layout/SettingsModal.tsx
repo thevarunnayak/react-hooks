@@ -30,6 +30,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         completedLessons: JSON.parse(localStorage.getItem(STORAGE_KEYS.LESSON_PROGRESS) || '[]'),
         completedChallenges: JSON.parse(localStorage.getItem(STORAGE_KEYS.CHALLENGE_SUBMISSIONS) || '[]'),
         notes: JSON.parse(localStorage.getItem('react_hooks_notes') || '{}'),
+        notesTable: JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES_TABLE) || '[]'),
         savedProjects: JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAYGROUND_STATE) || '[]'),
         preferences: {
           reducedMotion: false,
@@ -62,6 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         if (parsed.bookmarks) localStorage.setItem('react_hooks_bookmarks', JSON.stringify(parsed.bookmarks));
         if (parsed.completedLessons) localStorage.setItem(STORAGE_KEYS.LESSON_PROGRESS, JSON.stringify(parsed.completedLessons));
         if (parsed.notes) localStorage.setItem('react_hooks_notes', JSON.stringify(parsed.notes));
+        if (parsed.notesTable) localStorage.setItem(STORAGE_KEYS.NOTES_TABLE, JSON.stringify(parsed.notesTable));
         if (parsed.savedProjects) localStorage.setItem(STORAGE_KEYS.PLAYGROUND_STATE, JSON.stringify(parsed.savedProjects));
         if (parsed.theme) setTheme(parsed.theme);
 
@@ -91,6 +93,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         localStorage.removeItem(STORAGE_KEYS.LESSON_PROGRESS);
         localStorage.removeItem(STORAGE_KEYS.CHALLENGE_SUBMISSIONS);
         localStorage.removeItem('react_hooks_notes');
+        localStorage.removeItem('react_hooks_custom_notes');
+        localStorage.removeItem(STORAGE_KEYS.NOTES_TABLE);
         localStorage.removeItem(STORAGE_KEYS.PLAYGROUND_STATE);
         window.dispatchEvent(new Event('local-storage'));
         showAlert(t('settings.clearSuccessTitle'), t('settings.clearSuccessMessage'), 'info');

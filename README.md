@@ -39,8 +39,8 @@ Every hook follows the standardized 20-part educational specification:
 - Includes `useLocalStorage`, `useDebounce`, `useInterval`, `useClickOutside`, `useMediaQuery`, `useClipboard`, `usePrevious`, etc.
 - "Build Your Own Hook" wizard generating boilerplate, hints, and test structures.
 
-### 5. Tutorials with "Break It Mode" & Senior Interview Prep
-- Step-by-step projects with intentional bugs (infinite loops, stale closures, missing cleanups) with diagnostic hints and visual solutions.
+### 5. Real-Time Architectures & Senior Interview Prep
+- 25+ real-time interactive architecture patterns (Counter, Stopwatch, Debounced Search, Shopping Cart, Kanban, Form Validation, Window Resize, etc.).
 - Interactive challenge quizzes: Predict Output, Find Bug, Fix Hook, Optimize.
 - Senior React Engineer interview question bank with short answers, deep dives, and candidate pitfalls.
 
@@ -93,7 +93,7 @@ src/
 │   │   ├── nodes/        # UIComponentNode (real UI) & LogicHookNode
 │   │   ├── panels/       # ComponentPalette, Inspector, LivePreviewPanel, CodePanel
 │   │   └── engine/       # Code generator, history stack, and serialization
-│   └── tutorials/        # Preset configurations and Break-It scenarios
+│   └── tutorials/        # Preset configurations & real-time architectures
 ├── data/
 │   ├── hooks/            # 18+ Comprehensive Hook guides (20-part format)
 │   ├── custom-hooks/     # 40+ curated custom hook implementations & demos
@@ -115,7 +115,7 @@ src/
 1. Add an item to `CUSTOM_HOOKS_CATALOG` in `src/data/custom-hooks/catalog.ts`.
 2. Include problem, solution, parameters, implementation, and demo code.
 
-### Adding a Visual Playground Preset
+### Adding a Real-Time Architecture Preset
 1. Define a `PlaygroundProject` in `src/components/playground/tutorials/tutorialConfigs.ts`.
 2. Add the option to the preset selector in `CanvasToolbar.tsx`.
 

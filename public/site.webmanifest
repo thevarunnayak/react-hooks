@@ -1,0 +1,19 @@
+{
+  "name": "ReactLabz — Interactive React Hooks Studio & Architecture Lab",
+  "short_name": "ReactLabz",
+  "description": "Master React Hooks with deep mental models, interactive visualizers, custom hooks catalog, and visual component architecture.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "developer-tools", "productivity"]
+}

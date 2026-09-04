@@ -5,6 +5,8 @@ import { Button } from '../../ui/Button';
 import { Badge } from '../../ui/Badge';
 import { CustomSelect } from '../../ui/CustomSelect';
 import { formatKeybinding } from '../../../utils/platform';
+import { ExpandedArchitecturesCard } from './architectures/ExpandedArchitecturesPanel';
+import { ErrorBoundary } from '../../ui/ErrorBoundary';
 
 export interface CartItem {
   id: string;
@@ -788,6 +790,21 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
 
       setTraceLogs((prev) => [step, ...prev.slice(0, 5)]);
       onTraceAction?.(step);
+    } else {
+      const uiNode = nodes.find((n) => n.id === uiNodeId);
+      const step: TraceStep = {
+        id: Math.random().toString(),
+        sourceNodeId: uiNodeId,
+        targetNodeId: targetHook?.id,
+        description: targetHook
+          ? `Click <Button "${uiNode?.props.content || 'Button'}" /> -> Triggered ${targetHook.subtype} pipeline`
+          : `Click <Button "${uiNode?.props.content || 'Button'}" /> -> Dispatched event`,
+        timestamp: Date.now(),
+        type: 'click',
+      };
+      setTraceLogs((prev) => [step, ...prev.slice(0, 5)]);
+      onTraceAction?.(step);
+      setRenderCount((c) => c + 1);
     }
   };
 
@@ -1774,9 +1791,11 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
           );
         }
 
-        const safeBtnVariant = (node.props.variant === 'secondary' || node.props.variant === 'outline' || node.props.variant === 'ghost' || node.props.variant === 'danger')
-          ? node.props.variant
-          : 'primary';
+        let safeBtnVariant: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' = 'primary';
+        if (node.props.variant === 'secondary') safeBtnVariant = 'secondary';
+        else if (node.props.variant === 'outline') safeBtnVariant = 'outline';
+        else if (node.props.variant === 'ghost') safeBtnVariant = 'ghost';
+        else if (node.props.variant === 'danger') safeBtnVariant = 'danger';
 
         return (
           <Button
@@ -3987,6 +4006,48 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
 
       case 'Card':
       case 'Container': {
+        const expandedVariants = new Set([
+          'optimisticProduct',
+          'formActionPipeline',
+          'deferredSearch',
+          'externalStore',
+          'websocketDashboard',
+          'collabPresence',
+          'raceController',
+          'paginatedGrid',
+          'virtualizedFeed',
+          'dndKanban',
+          'commandPalette',
+          'undoableForm',
+          'multiSourceDashboard',
+          'requestDedup',
+          'resourceCacheTtl',
+          'errorBoundaryRecovery',
+          'suspenseStreaming',
+          'serverClientBoundary',
+          'optimisticCheckout',
+          'offlineNotes',
+          'notificationSync',
+          'collabCursorTracker',
+          'fileUploadManager',
+          'featureFlagRuntime',
+          'performanceObservatory',
+        ]);
+
+        if (expandedVariants.has(node.props.variant as string)) {
+          return (
+            <ErrorBoundary key={node.id} fallbackTitle={`Preview Error (${node.props.title || node.props.variant})`}>
+              <ExpandedArchitecturesCard
+                node={node}
+                onTraceAction={(step) => {
+                  setTraceLogs((prev) => [step, ...prev.slice(0, 5)]);
+                  onTraceActionRef.current?.(step);
+                }}
+              />
+            </ErrorBoundary>
+          );
+        }
+
         if (node.props.variant === 'cart' || node.id === 'node-card-cart') {
           const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
           const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -4783,7 +4844,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
               Workspace is empty. Add UI components and hooks to render your live application!
             </div>
           ) : (
-            <div style={{ width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ width: '100%', maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {rootNodes.map(renderUIElement)}
 
               {/* Kanban Board Columns View (rendered if not already provided by a Kanban UI node) */}

@@ -1,24 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HookLessonData } from '../types/hook';
 import {
   Bookmark,
   CheckCircle2,
   AlertTriangle,
   Lightbulb,
-  Cpu,
   Code2,
   Layers,
   HelpCircle,
-  ArrowRight,
   Sparkles,
-  Edit3,
-  Save,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Accordion } from '../components/ui/Accordion';
 import { Tooltip } from '../components/ui/Tooltip';
+import { PersonalNotesSection } from '../components/notes/PersonalNotesSection';
 import { t } from '../i18n/i18n';
 
 // Dedicated Interactive Labs
@@ -50,30 +47,7 @@ export const HookLessonPage: React.FC<HookLessonPageProps> = ({
   onNavigateHook,
   onOpenInPlayground,
 }) => {
-  // Personal notes per hook
-  const [noteText, setNoteText] = useState('');
-  const [noteSaved, setNoteSaved] = useState(false);
 
-  useEffect(() => {
-    try {
-      const allNotes = JSON.parse(localStorage.getItem('react_hooks_notes') || '{}');
-      setNoteText(allNotes[lesson.id] || '');
-    } catch {
-      setNoteText('');
-    }
-  }, [lesson.id]);
-
-  const saveNote = () => {
-    try {
-      const allNotes = JSON.parse(localStorage.getItem('react_hooks_notes') || '{}');
-      allNotes[lesson.id] = noteText;
-      localStorage.setItem('react_hooks_notes', JSON.stringify(allNotes));
-      setNoteSaved(true);
-      setTimeout(() => setNoteSaved(false), 2000);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   // Render the appropriate interactive lab
   const renderInteractiveLab = () => {
@@ -412,41 +386,8 @@ export const HookLessonPage: React.FC<HookLessonPageProps> = ({
         </section>
       )}
 
-      {/* 9. Personal Notes (Stored Locally) */}
-      <Card variant="glass" padding="md" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Edit3 size={15} style={{ color: 'var(--accent-primary)' }} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-              My Personal Notes (Saved Locally)
-            </span>
-          </div>
-          <Button
-            size="xs"
-            variant="primary"
-            icon={<Save size={12} />}
-            onClick={saveNote}
-          >
-            {noteSaved ? 'Saved!' : 'Save Note'}
-          </Button>
-        </div>
-
-        <textarea
-          value={noteText}
-          onChange={(e) => setNoteText(e.target.value)}
-          placeholder={`Write key observations about ${lesson.name}() here. Automatically stored in your browser...`}
-          rows={3}
-          style={{
-            padding: '10px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            fontSize: 'var(--text-sm)',
-            color: 'var(--text-primary)',
-            resize: 'vertical',
-          }}
-        />
-      </Card>
+      {/* 9. Personal Notes (Stored in unified Notes Table with ID) */}
+      <PersonalNotesSection targetId={lesson.id} targetName={`${lesson.name}()`} />
 
       {/* 10. Key Takeaway */}
       <div
@@ -465,6 +406,25 @@ export const HookLessonPage: React.FC<HookLessonPageProps> = ({
           <strong>Key Takeaway: </strong> {lesson.keyTakeaway}
         </div>
       </div>
+
+      {/* 11. Related Hooks */}
+      {lesson.relatedHooks && lesson.relatedHooks.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            Related Hooks:
+          </span>
+          {lesson.relatedHooks.map((rel) => (
+            <Button
+              key={rel}
+              size="xs"
+              variant="outline"
+              onClick={() => onNavigateHook(rel)}
+            >
+              {rel}()
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

@@ -14,6 +14,7 @@ import {
   Clock,
   Layers,
   Cpu,
+  Boxes,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -371,10 +372,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, completedLessons
             <Button
               size="sm"
               variant="secondary"
-              icon={<BookOpen size={14} />}
-              onClick={() => onNavigate('tutorials')}
+              icon={<Boxes size={14} />}
+              onClick={() => onNavigate('examples')}
             >
-              Load Presets (Counter, Stopwatch)
+              Real-Time Architectures (25)
             </Button>
           </div>
         </div>

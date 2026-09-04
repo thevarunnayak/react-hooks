@@ -84,7 +84,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         <Drawer
           isOpen={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
-          title="React Hooks Lab Navigation"
+          title="ReactLabz Navigation"
           side="left"
           width="280px"
         >

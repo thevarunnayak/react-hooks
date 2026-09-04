@@ -1,5 +1,6 @@
 import { PlaygroundProject } from '../../../types/playground';
 import { formatKeybinding } from '../../../utils/platform';
+import { TUTORIAL_PROJECTS_PART2 } from './tutorialConfigsPart2';
 
 export const TUTORIAL_PROJECTS: Record<string, PlaygroundProject> = {
   // 1. Counter
@@ -3087,4 +3088,5 @@ export const TUTORIAL_PROJECTS: Record<string, PlaygroundProject> = {
       },
     ],
   },
+  ...TUTORIAL_PROJECTS_PART2,
 };

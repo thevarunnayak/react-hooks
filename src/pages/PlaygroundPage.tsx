@@ -23,9 +23,11 @@ import { CustomPopupAlert } from '../components/ui/CustomPopupAlert';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { AlertVariant } from '../constants/enums';
 import { t } from '../i18n/i18n';
+import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 
 export interface PlaygroundPageProps {
   initialTutorialId?: string;
+  initialView?: 'builder' | 'canvas' | 'code' | 'preview';
 }
 
 // Add Node from Palette - static port generator
@@ -168,7 +170,10 @@ const getDefaultPorts = (sub: UISubtype | LogicSubtype): { inPorts: NodePort[]; 
   }
 };
 
-export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ initialTutorialId = 'counter' }) => {
+export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
+  initialTutorialId = 'counter',
+  initialView = 'builder',
+}) => {
   // Load initial project (or from local storage)
   const initialProject = TUTORIAL_PROJECTS[initialTutorialId] || TUTORIAL_PROJECTS.counter;
 
@@ -176,7 +181,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ initialTutorialI
   const [connections, setConnections] = useState<PlaygroundConnection[]>(initialProject.connections);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-btn-1');
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview'>('builder');
+  const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview'>(initialView);
   const [zoom, setZoom] = useState<number>(1);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState<boolean>(false);
@@ -827,11 +832,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({ initialTutorialI
           </>
         ) : activeView === 'preview' ? (
           <div style={{ flex: 1, height: '100%' }}>
-            <LivePreviewPanel
-              nodes={nodes}
-              connections={connections}
-              onTraceAction={handleTraceAction}
-            />
+            <ErrorBoundary fallbackTitle="Live Component Preview">
+              <LivePreviewPanel
+                nodes={nodes}
+                connections={connections}
+                onTraceAction={handleTraceAction}
+              />
+            </ErrorBoundary>
           </div>
         ) : (
           <div style={{ flex: 1, height: '100%' }}>

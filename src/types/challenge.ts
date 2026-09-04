@@ -3,7 +3,9 @@ export type ChallengeType =
   | 'find_bug'
   | 'fix_hook'
   | 'choose_hook'
-  | 'optimize';
+  | 'optimize'
+  | 'debug'
+  | 'architecture';
 
 export interface ChallengeItem {
   id: string;
@@ -20,13 +22,23 @@ export interface ChallengeItem {
   hint: string;
 }
 
+export type InterviewDifficulty = 'Junior' | 'Mid' | 'Senior' | 'Architect' | 'Principal' | 'Lead';
+
+export interface InterviewFollowUp {
+  question: string;
+  answer: string;
+  hint?: string;
+}
+
 export interface InterviewQuestionItem {
   id: string;
   category: string;
   question: string;
-  difficulty: 'Junior' | 'Mid' | 'Senior' | 'Lead';
+  difficulty: InterviewDifficulty;
   shortAnswer: string;
   deepDive: string;
   commonPitfalls: string[];
   codeExample?: string;
+  followUp?: InterviewFollowUp;
 }
+

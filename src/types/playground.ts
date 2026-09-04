@@ -38,6 +38,11 @@ export type LogicSubtype =
   | 'useId'
   | 'useTransition'
   | 'useLayoutEffect'
+  | 'useDeferredValue'
+  | 'useOptimistic'
+  | 'useActionState'
+  | 'useFormStatus'
+  | 'useSyncExternalStore'
   | 'Timer'
   | 'Event';
 
@@ -70,7 +75,43 @@ export interface PlaygroundNode {
   parentId?: string; // For component hierarchy nesting
   props: {
     content?: string;
-    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'cart' | 'tooltip' | 'metrics' | 'themeConsumer' | 'responsiveLayout';
+    variant?:
+      | 'primary'
+      | 'secondary'
+      | 'outline'
+      | 'ghost'
+      | 'danger'
+      | 'cart'
+      | 'tooltip'
+      | 'metrics'
+      | 'themeConsumer'
+      | 'responsiveLayout'
+      | 'optimisticProduct'
+      | 'formActionPipeline'
+      | 'deferredSearch'
+      | 'externalStore'
+      | 'websocketDashboard'
+      | 'collabPresence'
+      | 'raceController'
+      | 'paginatedGrid'
+      | 'virtualizedFeed'
+      | 'dndKanban'
+      | 'commandPalette'
+      | 'undoableForm'
+      | 'multiSourceDashboard'
+      | 'requestDedup'
+      | 'resourceCacheTtl'
+      | 'errorBoundaryRecovery'
+      | 'suspenseStreaming'
+      | 'serverClientBoundary'
+      | 'optimisticCheckout'
+      | 'offlineNotes'
+      | 'notificationSync'
+      | 'collabCursorTracker'
+      | 'fileUploadManager'
+      | 'featureFlagRuntime'
+      | 'performanceObservatory'
+      | (string & {});
     size?: 'sm' | 'md' | 'lg';
     placeholder?: string;
     checked?: boolean;
@@ -140,6 +181,6 @@ export interface PlaygroundProject {
   connections: PlaygroundConnection[];
   selectedNodeId?: string | null;
   category?: string;
-  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   hooks?: string[];
 }

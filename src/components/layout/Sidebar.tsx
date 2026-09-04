@@ -3,7 +3,6 @@ import {
   Home,
   LayoutGrid,
   Map,
-  BookOpen,
   Sparkles,
   Wand2,
   CheckCircle2,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { HOOKS_CATALOG } from '../../data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from '../../data/custom-hooks/catalog';
+import { TUTORIAL_PROJECTS } from '../playground/tutorials/tutorialConfigs';
 
 export interface SidebarProps {
   currentRoute: string;
@@ -32,10 +32,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const mainNav = [
     { id: 'home', label: 'Home & Learning Path', icon: <Home size={16} /> },
-    { id: 'playground', label: 'Visual Component Builder', icon: <LayoutGrid size={16} style={{ color: 'var(--accent-primary)' }} />, badge: 'Builder' },
-    { id: 'examples', label: 'Real-Time Architectures', icon: <Boxes size={16} style={{ color: '#10b981' }} />, badge: '25' },
+    { id: 'playground', label: 'Visual Component Builder', icon: <LayoutGrid size={16} style={{ color: 'var(--accent-primary)' }} /> },
+    { id: 'examples', label: 'Real-Time Architectures', icon: <Boxes size={16} style={{ color: '#10b981' }} />, badge: String(Object.keys(TUTORIAL_PROJECTS).length) },
     { id: 'hook-map', label: 'Visual Hook Map', icon: <Map size={16} /> },
-    { id: 'tutorials', label: 'Tutorials & Break It', icon: <BookOpen size={16} /> },
     { id: 'challenges', label: 'Interactive Challenges', icon: <CheckCircle2 size={16} /> },
     { id: 'interview', label: 'Interview Preparation', icon: <HelpCircle size={16} /> },
   ];
@@ -85,7 +84,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Primary Navigation */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {mainNav.map((item) => {
-          const isActive = currentRoute === item.id;
+          const isActive =
+            currentRoute === item.id ||
+            (item.id === 'challenges' && (currentRoute === 'challenge-session' || currentRoute === 'challenge-mode'));
           return (
             <button
               key={item.id}

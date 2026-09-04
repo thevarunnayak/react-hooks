@@ -4,64 +4,60 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Tooltip } from '../components/ui/Tooltip';
+import { MultiSelectDropdown } from '../components/ui/MultiSelectDropdown';
 import {
   Search,
   ArrowRight,
+  Eye,
   Boxes,
   Compass,
+  Layers,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 
+const ALL_HOOK_NAMES = [
+  'useState',
+  'useReducer',
+  'useEffect',
+  'useLayoutEffect',
+  'useRef',
+  'useMemo',
+  'useCallback',
+  'useContext',
+  'useId',
+  'useTransition',
+  'useDeferredValue',
+  'useOptimistic',
+  'useActionState',
+  'useFormStatus',
+  'useSyncExternalStore',
+  'Timer',
+];
+
 export interface ExamplesPageProps {
-  onLoadInPlayground: (tutorialKey: string) => void;
+  onLoadInPlayground: (tutorialKey: string, view?: 'builder' | 'preview') => void;
 }
 
 export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedHook, setSelectedHook] = useState<string>('All');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedHooks, setSelectedHooks] = useState<string[]>([]);
 
   const allProjects = useMemo(() => Object.values(TUTORIAL_PROJECTS), []);
 
-  // Extract unique categories and hooks
-  const categories = useMemo(() => {
+  // Extract unique categories as structured options
+  const categoryOptions = useMemo(() => {
     const set = new Set<string>();
     allProjects.forEach((p) => {
       if (p.category) set.add(p.category);
     });
-    return ['All', ...Array.from(set)];
+    return Array.from(set).sort().map((cat) => ({
+      value: cat,
+      label: cat,
+      count: allProjects.filter((p) => p.category === cat).length,
+    }));
   }, [allProjects]);
-
-  const allHookNames = [
-    'All',
-    'useState',
-    'useReducer',
-    'useEffect',
-    'useLayoutEffect',
-    'useRef',
-    'useMemo',
-    'useCallback',
-    'useContext',
-    'useId',
-    'useTransition',
-    'Timer',
-  ];
-
-  // Filter projects
-  const filteredProjects = useMemo(() => {
-    return allProjects.filter((project) => {
-      const matchesSearch =
-        !searchQuery ||
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (project.hooks && project.hooks.some((h) => h.toLowerCase().includes(searchQuery.toLowerCase())));
-
-      const matchesCategory = selectedCategory === 'All' || project.category === selectedCategory;
-
-      const matchesHook = selectedHook === 'All' || (project.hooks && project.hooks.includes(selectedHook));
-
-      return matchesSearch && matchesCategory && matchesHook;
-    });
-  }, [allProjects, searchQuery, selectedCategory, selectedHook]);
 
   const getHookColor = (hook: string) => {
     switch (hook) {
@@ -85,12 +81,53 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
         return '#f59e0b';
       case 'useLayoutEffect':
         return '#ec4899';
+      case 'useDeferredValue':
+        return '#06b6d4';
+      case 'useOptimistic':
+        return '#10b981';
+      case 'useActionState':
+        return '#f97316';
+      case 'useFormStatus':
+        return '#eab308';
+      case 'useSyncExternalStore':
+        return '#6366f1';
       case 'Timer':
         return 'var(--accent-danger)';
       default:
         return 'var(--text-muted)';
     }
   };
+
+  const hookOptions = useMemo(() => {
+    return ALL_HOOK_NAMES.map((hook) => ({
+      value: hook,
+      label: hook,
+      count: allProjects.filter((p) => p.hooks && p.hooks.includes(hook)).length,
+      color: getHookColor(hook),
+      fontFamily: 'var(--font-mono)',
+    }));
+  }, [allProjects]);
+
+  // Filter projects with multi-select Category & Hook support
+  const filteredProjects = useMemo(() => {
+    return allProjects.filter((project) => {
+      const matchesSearch =
+        !searchQuery ||
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.description && project.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (project.hooks && project.hooks.some((h) => h.toLowerCase().includes(searchQuery.toLowerCase())));
+
+      const matchesCategory =
+        selectedCategories.length === 0 ||
+        (project.category !== undefined && selectedCategories.includes(project.category));
+
+      const matchesHook =
+        selectedHooks.length === 0 ||
+        (project.hooks !== undefined && project.hooks.some((h) => selectedHooks.includes(h)));
+
+      return matchesSearch && matchesCategory && matchesHook;
+    });
+  }, [allProjects, searchQuery, selectedCategories, selectedHooks]);
 
   const getDifficultyVariant = (difficulty?: string): 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'purple' | 'cyan' => {
     switch (difficulty) {
@@ -100,6 +137,8 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
         return 'primary';
       case 'Advanced':
         return 'purple';
+      case 'Expert':
+        return 'danger';
       default:
         return 'default';
     }
@@ -128,12 +167,12 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
           </Badge>
         </div>
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', maxWidth: '850px', lineHeight: 1.6 }}>
-          Browse 25 interactive, real-world systems illustrating cross-hook composition, concurrency, lifecycle management, and high-performance state patterns. Click any system to launch its live interactive blueprint directly onto the canvas.
+          Browse {allProjects.length} interactive, real-world systems illustrating cross-hook composition, concurrency, lifecycle management, and high-performance state patterns. Click any system to launch its live interactive blueprint directly onto the canvas.
         </p>
 
         {/* Highlight Stats Pill Row */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: 'var(--space-2)' }}>
-          <Badge variant="default" size="sm">All 11 Hooks Covered</Badge>
+          <Badge variant="default" size="sm">All React Hooks &amp; Patterns Covered</Badge>
           <Badge variant="default" size="sm">Zero Stale Closures</Badge>
           <Badge variant="default" size="sm">Live Reactive Visualizer</Badge>
           <Badge variant="default" size="sm">Production TSX Generator</Badge>
@@ -187,84 +226,149 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
           />
         </div>
 
-        {/* Category Pills */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-            Filter by Category:
-          </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {categories.map((cat) => {
-              const count = cat === 'All' ? allProjects.length : allProjects.filter((p) => p.category === cat).length;
-              const isSelected = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: '11px',
-                    fontWeight: isSelected ? 700 : 500,
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: isSelected ? 'var(--accent-primary)' : 'var(--bg-surface-elevated)',
-                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                    border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-default)'}`,
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-fast)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <span>{cat}</span>
-                  <span
-                    style={{
-                      fontSize: '9.5px',
-                      opacity: 0.85,
-                      padding: '1px 5px',
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-surface)',
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+        {/* Multi-Select Dropdowns & Filter Controls Row */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+            <MultiSelectDropdown
+              label="Filter by Category"
+              icon={<Layers size={14} />}
+              options={categoryOptions}
+              selectedValues={selectedCategories}
+              onChange={setSelectedCategories}
+              placeholder="All Categories"
+              searchPlaceholder="Search categories..."
+            />
+
+            <MultiSelectDropdown
+              label="Filter by Hook"
+              icon={<Boxes size={14} />}
+              options={hookOptions}
+              selectedValues={selectedHooks}
+              onChange={setSelectedHooks}
+              placeholder="All Hooks"
+              searchPlaceholder="Search hooks..."
+            />
+
+            {(selectedCategories.length > 0 || selectedHooks.length > 0 || searchQuery) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setSelectedHooks([]);
+                  setSearchQuery('');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '7px 12px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'transparent',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = 'var(--accent-danger)';
+                  e.currentTarget.style.borderColor = 'var(--accent-danger)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.borderColor = 'var(--border-default)';
+                }}
+              >
+                <RotateCcw size={12} />
+                <span>Reset Filters</span>
+              </button>
+            )}
           </div>
+
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Showing <strong>{filteredProjects.length}</strong> of {allProjects.length} architectures
+          </span>
         </div>
 
-        {/* Hook Filter Chips */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <span style={{ fontSize: '10px', textTransform: 'uppercase', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-            Filter by Hook:
-          </span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {allHookNames.map((hook) => {
-              const isSelected = selectedHook === hook;
-              const hookColor = hook === 'All' ? 'var(--accent-primary)' : getHookColor(hook);
-              return (
-                <button
-                  key={hook}
-                  onClick={() => setSelectedHook(hook)}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: isSelected ? 700 : 500,
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: isSelected ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
-                    color: isSelected ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
-                    border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-fast)',
-                    fontFamily: hook !== 'All' ? 'var(--font-mono)' : 'inherit',
-                  }}
+        {/* Active Filter Tags Ribbon (if any active) */}
+        {(selectedCategories.length > 0 || selectedHooks.length > 0) && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '6px',
+              paddingTop: '6px',
+              borderTop: '1px dashed var(--border-subtle)',
+            }}
+          >
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '4px' }}>
+              Active Filters:
+            </span>
+            {selectedCategories.map((cat) => (
+              <span
+                key={cat}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11px',
+                  backgroundColor: 'var(--accent-primary-subtle)',
+                  color: 'var(--accent-primary-text)',
+                  border: '1px solid var(--accent-primary)',
+                  fontWeight: 600,
+                }}
+              >
+                <span>Category: {cat}</span>
+                <span
+                  onClick={() => setSelectedCategories((prev) => prev.filter((c) => c !== cat))}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  title="Remove filter"
                 >
-                  {hook}
-                </button>
-              );
-            })}
+                  <X size={11} />
+                </span>
+              </span>
+            ))}
+            {selectedHooks.map((h) => (
+              <span
+                key={h}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                  color: '#8b5cf6',
+                  border: '1px solid rgba(139, 92, 246, 0.35)',
+                  fontWeight: 600,
+                }}
+              >
+                <span>{h}</span>
+                <span
+                  onClick={() => setSelectedHooks((prev) => prev.filter((item) => item !== h))}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  title="Remove filter"
+                >
+                  <X size={11} />
+                </span>
+              </span>
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Grid of Architecture Cards */}
@@ -290,8 +394,8 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
             variant="outline"
             onClick={() => {
               setSearchQuery('');
-              setSelectedCategory('All');
-              setSelectedHook('All');
+              setSelectedCategories([]);
+              setSelectedHooks([]);
             }}
           >
             Reset Filters
@@ -409,16 +513,29 @@ export const ExamplesPage: React.FC<ExamplesPageProps> = ({ onLoadInPlayground }
                     <span>{connCount} Wires</span>
                   </div>
 
-                  <Tooltip content="Load this interactive system into the visual canvas" placement="top">
-                    <Button
-                      size="xs"
-                      variant="primary"
-                      icon={<ArrowRight size={12} />}
-                      onClick={() => onLoadInPlayground(project.id)}
-                    >
-                      Launch in Canvas
-                    </Button>
-                  </Tooltip>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Tooltip content="Directly open the interactive Live Preview" placement="top">
+                      <Button
+                        size="xs"
+                        variant="secondary"
+                        icon={<Eye size={12} />}
+                        onClick={() => onLoadInPlayground(project.id, 'preview')}
+                      >
+                        Live Preview
+                      </Button>
+                    </Tooltip>
+
+                    <Tooltip content="Load this interactive system into the visual canvas" placement="top">
+                      <Button
+                        size="xs"
+                        variant="primary"
+                        icon={<ArrowRight size={12} />}
+                        onClick={() => onLoadInPlayground(project.id, 'builder')}
+                      >
+                        Launch in Canvas
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </div>
               </Card>
             );

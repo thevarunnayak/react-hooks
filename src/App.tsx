@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AppShell } from './components/layout/AppShell';
+import { SplashScreen } from './components/ui/SplashScreen';
 import { HomePage } from './pages/HomePage';
 import { HookLessonPage } from './pages/HookLessonPage';
 import { HookMapPage } from './pages/HookMapPage';
@@ -7,17 +10,35 @@ import { PlaygroundPage } from './pages/PlaygroundPage';
 import { CustomHooksPage } from './pages/CustomHooksPage';
 import { CustomHookDetailPage } from './pages/CustomHookDetailPage';
 import { HookBuilderPage } from './pages/HookBuilderPage';
-import { TutorialsPage } from './pages/TutorialsPage';
 import { ExamplesPage } from './pages/ExamplesPage';
 import { ChallengesPage } from './pages/ChallengesPage';
+import { ChallengeSessionPage } from './pages/ChallengeSessionPage';
 import { InterviewPage } from './pages/InterviewPage';
 import { HOOKS_BY_ID, HOOKS_CATALOG } from './data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from './data/custom-hooks/catalog';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { trackEvent } from './utils/analytics';
 
 export function App() {
+  // Brand Splash Screen (shows on initial session launch)
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    try {
+      return !sessionStorage.getItem('reactlabz_splash_shown');
+    } catch {
+      return true;
+    }
+  });
+
+  const handleSplashFinish = () => {
+    try {
+      sessionStorage.setItem('reactlabz_splash_shown', 'true');
+    } catch {}
+    setShowSplash(false);
+  };
+
   const [currentRoute, setCurrentRoute] = useState<string>('home');
   const [currentParam, setCurrentParam] = useState<string | undefined>(undefined);
+  const [currentSubParam, setCurrentSubParam] = useState<string | undefined>(undefined);
 
   // Local-First Progress & Bookmarks (No backend required)
   const [bookmarks, setBookmarks] = useLocalStorage<string[]>('react_hooks_bookmarks', []);
@@ -28,9 +49,10 @@ export function App() {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash) {
-        const [route, param] = hash.split('/');
+        const [route, param, subParam] = hash.split('/');
         setCurrentRoute(route || 'home');
         setCurrentParam(param);
+        setCurrentSubParam(subParam);
       }
     };
 
@@ -39,10 +61,17 @@ export function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const navigate = (route: string, param?: string) => {
+  // Track route views in Vercel Analytics
+  useEffect(() => {
+    trackEvent('page_view', { route: currentRoute, param: currentParam || 'none' });
+  }, [currentRoute, currentParam]);
+
+  const navigate = (route: string, param?: string, subParam?: string) => {
     setCurrentRoute(route);
     setCurrentParam(param);
-    window.location.hash = param ? `${route}/${param}` : route;
+    setCurrentSubParam(subParam);
+    const hashParts = [route, param, subParam].filter(Boolean);
+    window.location.hash = hashParts.join('/');
   };
 
   const toggleBookmark = (hookId: string) => {
@@ -83,7 +112,13 @@ export function App() {
       }
 
       case 'playground':
-        return <PlaygroundPage key={currentParam || 'counter'} initialTutorialId={currentParam || 'counter'} />;
+        return (
+          <PlaygroundPage
+            key={`${currentParam || 'counter'}-${currentSubParam || 'builder'}`}
+            initialTutorialId={currentParam || 'counter'}
+            initialView={currentSubParam === 'preview' ? 'preview' : 'builder'}
+          />
+        );
 
       case 'hook-map':
         return <HookMapPage onNavigateHook={(id) => navigate('hook', id)} />;
@@ -111,22 +146,19 @@ export function App() {
       case 'hook-builder':
         return <HookBuilderPage />;
 
-      case 'tutorials':
-        return (
-          <TutorialsPage
-            onLoadInPlayground={(tutKey) => navigate('playground', tutKey)}
-          />
-        );
-
       case 'examples':
         return (
           <ExamplesPage
-            onLoadInPlayground={(tutKey) => navigate('playground', tutKey)}
+            onLoadInPlayground={(tutKey, view) => navigate('playground', tutKey, view)}
           />
         );
 
       case 'challenges':
-        return <ChallengesPage />;
+        return <ChallengesPage onNavigate={navigate} />;
+
+      case 'challenge-session':
+      case 'challenge-mode':
+        return <ChallengeSessionPage onNavigate={navigate} />;
 
       case 'interview':
         return <InterviewPage />;
@@ -142,15 +174,20 @@ export function App() {
   };
 
   return (
-    <AppShell
-      currentRoute={currentRoute}
-      currentHookId={currentParam}
-      onNavigate={navigate}
-      bookmarks={bookmarks}
-      completedLessons={completedLessons}
-    >
-      {renderCurrentView()}
-    </AppShell>
+    <>
+      {showSplash && <SplashScreen onFinish={handleSplashFinish} />}
+      <AppShell
+        currentRoute={currentRoute}
+        currentHookId={currentParam}
+        onNavigate={navigate}
+        bookmarks={bookmarks}
+        completedLessons={completedLessons}
+      >
+        {renderCurrentView()}
+      </AppShell>
+      <Analytics />
+      <SpeedInsights />
+    </>
   );
 }
 

@@ -1,0 +1,9 @@
+# Robots.txt for ReactLabz (https://reactlabz.vercel.app)
+User-agent: *
+Allow: /
+
+# Host
+Host: https://reactlabz.vercel.app
+
+# Sitemaps
+Sitemap: https://reactlabz.vercel.app/sitemap.xml

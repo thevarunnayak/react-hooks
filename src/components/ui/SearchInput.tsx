@@ -14,7 +14,7 @@ export interface SearchInputProps {
 export const SearchInput: React.FC<SearchInputProps> = ({
   value,
   onChange,
-  placeholder = 'Search hooks, custom hooks, tutorials...',
+  placeholder = 'Search hooks, custom hooks, architectures...',
   onClear,
   shortcutBadge = '⌘K',
   style,

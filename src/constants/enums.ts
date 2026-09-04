@@ -42,6 +42,11 @@ export enum LogicSubtype {
   USE_ID = 'useId',
   USE_TRANSITION = 'useTransition',
   USE_LAYOUT_EFFECT = 'useLayoutEffect',
+  USE_DEFERRED_VALUE = 'useDeferredValue',
+  USE_OPTIMISTIC = 'useOptimistic',
+  USE_ACTION_STATE = 'useActionState',
+  USE_FORM_STATUS = 'useFormStatus',
+  USE_SYNC_EXTERNAL_STORE = 'useSyncExternalStore',
   TIMER = 'Timer',
   EVENT = 'Event',
 }

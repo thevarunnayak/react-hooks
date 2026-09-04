@@ -6,11 +6,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  Layers,
-  BookOpen,
-  Boxes,
 } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { BrandLogo } from '../ui/BrandLogo';
 import { Tooltip } from '../ui/Tooltip';
 import { useTheme } from '../../hooks/useTheme';
 import { ThemeMode } from '../../constants/enums';
@@ -60,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
       }}
       className="app-header"
     >
-      {/* Left: Mobile Menu & Logo */}
+      {/* Left: Mobile Menu & Brand Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={onToggleMobileMenu}
@@ -83,91 +80,41 @@ export const Header: React.FC<HeaderProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            gap: '10px',
             cursor: 'pointer',
             userSelect: 'none',
           }}
         >
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--accent-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              boxShadow: 'var(--shadow-glow-blue)',
-            }}
-          >
-            <Layers size={16} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-              React Hooks Lab
+          <BrandLogo size={28} glow={true} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: '17px',
+                letterSpacing: '-0.03em',
+                background: 'linear-gradient(135deg, var(--text-primary) 30%, #6366f1 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              ReactLabz
+            </span>
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                color: 'var(--accent-primary)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              STUDIO
             </span>
           </div>
         </div>
-
-        {/* Quick Nav Links on Desktop */}
-        {onNavigate && (
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }} className="hide-mobile">
-            <button
-              onClick={() => onNavigate('playground')}
-              style={{
-                padding: '5px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: currentRoute === 'playground' ? 'var(--accent-primary-subtle)' : 'transparent',
-                color: currentRoute === 'playground' ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
-                border: `1px solid ${currentRoute === 'playground' ? 'var(--accent-primary)' : 'transparent'}`,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <Layers size={13} />
-              <span>Builder</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('examples')}
-              style={{
-                padding: '5px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: currentRoute === 'examples' ? 'var(--accent-primary-subtle)' : 'transparent',
-                color: currentRoute === 'examples' ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
-                border: `1px solid ${currentRoute === 'examples' ? 'var(--accent-primary)' : 'transparent'}`,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              <Boxes size={13} />
-              <span>Architectures</span>
-              <span
-                style={{
-                  fontSize: '9.5px',
-                  padding: '1px 5px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: '#10b981',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                }}
-              >
-                25
-              </span>
-            </button>
-          </nav>
-        )}
       </div>
 
       {/* Center: Search Bar Trigger */}
