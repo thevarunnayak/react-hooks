@@ -18,6 +18,7 @@ import { HOOKS_BY_ID, HOOKS_CATALOG } from './data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from './data/custom-hooks/catalog';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { trackEvent } from './utils/analytics';
+import { getTutorialForHook, getTutorialForCustomHook } from './constants/tutorialMapping';
 
 export function App() {
   // Brand Splash Screen (shows on initial session launch)
@@ -106,7 +107,10 @@ export function App() {
             onToggleBookmark={toggleBookmark}
             onToggleComplete={toggleComplete}
             onNavigateHook={(id) => navigate('hook', id)}
-            onOpenInPlayground={() => navigate('playground')}
+            onOpenInPlayground={(hookId) => {
+              const targetTutorial = getTutorialForHook(hookId || lesson.id);
+              navigate('playground', targetTutorial);
+            }}
           />
         );
       }
@@ -138,7 +142,10 @@ export function App() {
           <CustomHookDetailPage
             hook={hookItem}
             onBack={() => navigate('custom-hooks')}
-            onOpenInPlayground={() => navigate('playground')}
+            onOpenInPlayground={(id) => {
+              const targetTutorial = getTutorialForCustomHook(id || hookItem.id);
+              navigate('playground', targetTutorial);
+            }}
           />
         );
       }

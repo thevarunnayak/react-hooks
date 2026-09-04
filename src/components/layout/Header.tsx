@@ -137,8 +137,18 @@ export const Header: React.FC<HeaderProps> = ({
         }}
         className="hide-mobile search-bar-trigger"
       >
-        <Search size={14} />
-        <span style={{ flex: 1, textAlign: 'left' }}>{t('header.searchPlaceholder')}</span>
+        <Search size={14} style={{ flexShrink: 0 }} />
+        <span
+          style={{
+            flex: 1,
+            textAlign: 'left',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {t('header.searchPlaceholder')}
+        </span>
         <kbd
           style={{
             fontFamily: 'var(--font-mono)',

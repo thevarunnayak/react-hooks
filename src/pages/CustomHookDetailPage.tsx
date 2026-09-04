@@ -21,7 +21,7 @@ import { PersonalNotesSection } from '../components/notes/PersonalNotesSection';
 export interface CustomHookDetailPageProps {
   hook: CustomHookItem;
   onBack: () => void;
-  onOpenInPlayground?: () => void;
+  onOpenInPlayground?: (hookId: string) => void;
 }
 
 export const CustomHookDetailPage: React.FC<CustomHookDetailPageProps> = ({
@@ -181,7 +181,7 @@ describe('${hook.name}', () => {
               size="sm"
               variant="outline"
               icon={<Layers size={14} />}
-              onClick={onOpenInPlayground}
+              onClick={() => onOpenInPlayground(hook.id)}
             >
               Open in Builder
             </Button>

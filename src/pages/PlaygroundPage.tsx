@@ -182,7 +182,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-btn-1');
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview'>(initialView);
-  const [zoom, setZoom] = useState<number>(1);
+  const [zoom, setZoom] = useState<number>(0.8);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState<boolean>(false);
 
@@ -700,6 +700,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
     if (project) {
       pushState(project.nodes, project.connections);
       setSelectedNodeId(project.nodes[0]?.id || null);
+      setZoom(0.8);
     }
   };
 
@@ -764,7 +765,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
         zoom={zoom}
         onZoomIn={() => setZoom((z) => Math.min(2, z + 0.1))}
         onZoomOut={() => setZoom((z) => Math.max(0.5, z - 0.1))}
-        onZoomReset={() => setZoom(1)}
+        onZoomReset={() => setZoom((z) => (Math.abs(z - 0.8) < 0.05 ? 1 : 0.8))}
         onReset={handleReset}
         onSave={handleSave}
         onLoadTutorial={handleLoadTutorial}

@@ -131,3 +131,36 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Modal Open: Completely lock background scrolling and remove scrollbars */
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html.modal-open::-webkit-scrollbar,
+body.modal-open::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html.modal-open #root,
+html.modal-open .app-main-content,
+html.modal-open .app-sidebar {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html.modal-open #root::-webkit-scrollbar,
+html.modal-open .app-main-content::-webkit-scrollbar,
+html.modal-open .app-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+

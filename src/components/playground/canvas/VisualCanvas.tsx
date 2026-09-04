@@ -42,10 +42,10 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
   onDeleteConnection,
   onUpdateProps,
   resolvedValues = {},
-  zoom = 1,
+  zoom = 0.8,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [pan, setPan] = useState({ x: 60, y: 50 });
+  const [pan, setPan] = useState({ x: 40, y: 40 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(zoom);

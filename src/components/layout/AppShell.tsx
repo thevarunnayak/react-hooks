@@ -26,9 +26,29 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('reactlabz_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
-  // Global ⌘K keyboard shortcut
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('reactlabz_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Global ⌘K keyboard shortcut for search
   useKeyboardShortcut('k', () => setSearchOpen(true), { meta: true });
+
+  // Global ⌘B keyboard shortcut for toggling sidebar
+  useKeyboardShortcut('b', handleToggleSidebar, { meta: true });
 
   const handleNavigate = (route: string, param?: string) => {
     onNavigate(route, param);
@@ -59,7 +79,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       {/* Main Workspace Layout */}
       <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 56px)' }}>
-        {/* Desktop Sidebar (Sticky to Viewport) */}
+        {/* Desktop Sidebar (Sticky to Viewport with Smooth Collapse) */}
         <div
           className="hide-mobile"
           style={{
@@ -69,6 +89,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             alignSelf: 'flex-start',
             flexShrink: 0,
             zIndex: 'var(--z-sticky)',
+            width: sidebarCollapsed ? '56px' : '260px',
+            transition: 'width 220ms cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <Sidebar
@@ -77,6 +99,8 @@ export const AppShell: React.FC<AppShellProps> = ({
             onNavigate={handleNavigate}
             bookmarks={bookmarks}
             completedLessons={completedLessons}
+            isCollapsed={sidebarCollapsed}
+            onToggleCollapse={handleToggleSidebar}
           />
         </div>
 
