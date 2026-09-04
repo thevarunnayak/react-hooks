@@ -7,7 +7,13 @@ export function generateReactCode(
 ): string {
   // 1. Identify Hook / Logic nodes
   const hookNodes = nodes.filter((n) => n.type === 'logic');
-  const uiNodes = nodes.filter((n) => n.type === 'ui');
+  const uiNodes = nodes
+    .filter((n) => n.type === 'ui')
+    .sort((a, b) => {
+      const orderA = typeof a.props?.uiOrder === 'number' ? a.props.uiOrder : nodes.indexOf(a);
+      const orderB = typeof b.props?.uiOrder === 'number' ? b.props.uiOrder : nodes.indexOf(b);
+      return orderA - orderB;
+    });
 
   // Collect imports needed
   const reactHooksUsed = new Set<string>();
@@ -194,10 +200,12 @@ export function generateReactCode(
       const stateName = targetHook?.props.stateName || 'selected';
       const setterName = targetHook?.props.setterName || `set${stateName.charAt(0).toUpperCase() + stateName.slice(1)}`;
       const options = JSON.stringify(node.props.options || ['Light', 'Dark', 'System']);
+      const label = node.props.content || node.props.label;
+      const labelAttr = label ? `\n${indent}  label="${label}"` : '';
       if (targetHook) {
-        return `${indent}{/* Custom Dropdown Select */}\n${indent}<CustomDropdown\n${indent}  value={${stateName}}\n${indent}  options={${options}}\n${indent}  onChange={(val) => ${setterName}(val)}\n${indent}/>`;
+        return `${indent}{/* Custom Dropdown Select */}\n${indent}<CustomDropdown${labelAttr}\n${indent}  value={${stateName}}\n${indent}  options={${options}}\n${indent}  onChange={(val) => ${setterName}(val)}\n${indent}/>`;
       }
-      return `${indent}<CustomDropdown options={${options}} />`;
+      return `${indent}<CustomDropdown${labelAttr} options={${options}} />`;
     }
 
     if (node.subtype === 'Slider') {

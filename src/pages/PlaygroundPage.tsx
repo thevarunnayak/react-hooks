@@ -17,6 +17,7 @@ import { LivePreviewPanel } from '../components/playground/panels/LivePreviewPan
 import { CodePanel } from '../components/playground/panels/CodePanel';
 import { generateReactCode } from '../components/playground/engine/codeGenerator';
 import { TUTORIAL_PROJECTS } from '../components/playground/tutorials/tutorialConfigs';
+import { DUMMY_DATA_PRESETS } from '../constants/dummyDataPresets';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import { usePopupAlert } from '../hooks/usePopupAlert';
 import { CustomPopupAlert } from '../components/ui/CustomPopupAlert';
@@ -249,20 +250,13 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
     } else if (subtype === 'Form') {
       initialProps = { content: 'Feedback Form' };
     } else if (subtype === 'DummyData') {
+      const defaultPreset = DUMMY_DATA_PRESETS.products;
       initialProps = {
-        title: 'Frameworks Catalog',
-        items: [
-          'React',
-          'React Native',
-          'Next.js',
-          'TypeScript',
-          'Tailwind CSS',
-          'Redux Toolkit',
-          'GraphQL',
-          'Vite',
-          'Node.js',
-          'Zustand',
-        ],
+        title: defaultPreset.defaultTitle,
+        datasetPreset: defaultPreset.id,
+        displayStyle: defaultPreset.defaultStyle,
+        items: [...defaultPreset.items],
+        totalCount: defaultPreset.items.length,
       };
     } else if (subtype === 'Kanban') {
       initialProps = {
@@ -539,6 +533,33 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
     [nodes, connections, pushState]
   );
 
+  // Reorder UI nodes sequence for Live Preview and code generation
+  const handleReorderUINodes = useCallback(
+    (newOrderedUiNodeIds: string[]) => {
+      const uiNodesMap = new Map(nodes.filter((n) => n.type === 'ui').map((n) => [n.id, n]));
+      const nonUiNodes = nodes.filter((n) => n.type !== 'ui');
+
+      const orderedUiNodes: PlaygroundNode[] = [];
+      newOrderedUiNodeIds.forEach((id, index) => {
+        const node = uiNodesMap.get(id);
+        if (node) {
+          orderedUiNodes.push({
+            ...node,
+            props: {
+              ...node.props,
+              uiOrder: index,
+            },
+          });
+          uiNodesMap.delete(id);
+        }
+      });
+      uiNodesMap.forEach((node) => orderedUiNodes.push(node));
+
+      pushState([...orderedUiNodes, ...nonUiNodes], connections);
+    },
+    [nodes, connections, pushState]
+  );
+
   // Keyboard Shortcuts: Delete/Backspace (Delete Node or Wire), Cmd+D/Ctrl+D (Duplicate Node), Escape (Deselect)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -775,6 +796,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
         onToggleLeftPanel={() => setIsLeftCollapsed(!isLeftCollapsed)}
         isRightCollapsed={isRightCollapsed}
         onToggleRightPanel={() => setIsRightCollapsed(!isRightCollapsed)}
+        nodes={nodes}
+        onReorderUINodes={handleReorderUINodes}
       />
 
       {/* Main Multi-Panel Workspace */}

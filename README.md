@@ -1,24 +1,65 @@
-# React Hooks Lab — Interactive Learning & Visual Canvas
+# ReactLabz — Interactive React Hooks Studio & Visual Architecture Lab
 
-> **Master React Hooks by actually using them.**  
-> Learn the mental model. See what React is doing under the hood. Experiment with live visualizers. Break and fix real examples. Construct components on a visual canvas.
+<div align="center">
 
-An interactive educational web application built with **React 19, TypeScript, and Vite**, designed as a hands-on learning environment without any backend or database requirements.
+[![React 19](https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Zero Backend](https://img.shields.io/badge/Zero_Backend-100%25_Client--Side-10B981?style=for-the-badge&logo=safari&logoColor=white)](#privacy--zero-backend-architecture)
+[![License: MIT](https://img.shields.io/badge/License-MIT-F59E0B?style=for-the-badge)](LICENSE)
+
+**Stop guessing what React hooks are doing under the hood.**  
+A visual, hands-on diagnostic laboratory for React engineers. Inspect state snapshots, debug memory leaks and stale closures, compare referential identity, and construct functional components on an infinite visual canvas.
+
+[**Explore Live Demo**](https://reactlabz.vercel.app/) · [**Report Issue**](https://github.com/thevarunnayak/react-hooks/issues) · [**Request Feature**](https://github.com/thevarunnayak/react-hooks/issues)
+
+</div>
 
 ---
 
-## Core Features
+## Visual Tour
 
-### 1. Visual Canvas & Component Builder (Figma-meets-ReactFlow)
-- **UI Components that look like real UI**: Place Buttons, Inputs, Cards, Headings, and Badges directly onto an infinite dot-grid canvas.
-- **Logic & Hook Nodes**: Add `useState`, `useEffect`, `useRef`, `useReducer`, and Timers with typed connection ports.
-- **Semantic Connections**: Wire UI events (`Button.onClick` → `setCount`), state data (`count` → `Text {{count}}`), and effect triggers.
-- **Live Preview with Execution Tracing**: Interact with the rendered application; button clicks pulse the path across the canvas (`User Click → Event → State Update → Render → UI Update`).
-- **Real-Time Code Generator**: Generates clean, idiomatic React TypeScript code dynamically from your visual composition.
-- **Pre-built Presets**: Instant loading of Counter, Stopwatch, Search, Todo, and Shopping Cart projects.
-- **Undo / Redo**: Robust command history stack (`⌘Z` / `⌘ShiftZ`).
+<div align="center">
 
-### 2. Deep Interactive Visualizers & Labs
+### Home & Interactive Fiber Telemetry
+![ReactLabz Home](docs/screenshots/home.png)
+
+### Infinite Visual Component Builder & Canvas Playground
+![Visual Builder Canvas](docs/screenshots/playground.png)
+
+</div>
+
+---
+
+## Highlights & Core Features
+
+### 1. Visual Component Builder & Infinite Playground (`#playground`)
+*Figma-meets-ReactFlow component construction with zero build step.*
+- **Infinite Dot-Grid Canvas**: Pan, smooth zoom (0.5x to 2.0x), grid snap, mini-map, and canvas reset.
+- **Rendered UI Component Nodes**: Nodes render as actual interactive UI elements rather than abstract boxes:
+  - Buttons (Primary, Secondary, Outline, Danger)
+  - Inputs, Headings, and dynamic Text with reactive template binding (`{{count}}`)
+  - Switches, Checkboxes, Range Sliders, and Dropdowns
+  - Cards, Containers, Badges, and Feedback Forms
+  - **Curated Dummy Data Nodes**: 8 rich preset datasets (*Products*, *Frameworks*, *Team*, *Crypto/Stocks*, *Kanban Tasks*, *Countries*, *Articles*, *Tokens*) with 4 switchable display formats (*Cards*, *Pills*, *Grid*, *Table*).
+  - **Interactive Kanban Board**: Fully draggable cards across columns with real-time status counts.
+- **Logic & Hook Nodes**: Add `useState`, `useEffect`, `useRef`, `useReducer`, `useMemo`, `useCallback`, `useContext`, `useId`, `useTransition`, `useLayoutEffect`, `useDeferredValue`, `useOptimistic`, `useActionState`, `useFormStatus`, `useSyncExternalStore`, and Timers.
+- **Semantic Port Wiring**:
+  - `Event` (amber) — Button clicks → state setter / action dispatch
+  - `Data` (cyan) — State values → UI text / input content
+  - `Dependency` (purple) — State triggers → `useEffect` / `useMemo` dependency arrays
+- **Interactive Live Preview with Execution Tracing**: Interact with the rendered application; button clicks pulse the path across the canvas (`User Click → Event → State Update → Render → UI Update`).
+- **UI Sequence Ordering Control**:
+  - Reorder components via Up/Down/Top/Bottom controls or native **drag-and-drop handles**.
+  - 1-click **"Auto-Sort by Canvas"** automatically aligns the UI layout top-to-bottom and left-to-right based on canvas coordinates.
+  - Floating, draggable sequence modal window with instant position reset.
+- **Dynamic Real-Time Code Generator**: Generates clean, production-ready, idiomatic TypeScript React code respecting the exact UI sequence, state variables, hooks, imports, and handlers.
+- **50 Curated Real-Time Architecture Presets**: Instant loading of architectures ranging from simple Counters and Stopwatches to complex Race Condition Controllers, WebSockets, Suspense Streaming, and Performance Observatories.
+- **Full Undo / Redo**: Robust command pattern history stack (`⌘Z` / `⌘ShiftZ`).
+
+---
+
+### 2. Deep Interactive Visualizers & Diagnostics
 - **Render Visualizer**: Live render counters and causality diffs ("Why did this render?").
 - **Referential Equality Visualizer**: Live comparison of memory addresses (`0xCAFE` vs new allocations), explaining why unmemoized objects break `useEffect` and `React.memo`.
 - **Closure Visualizer**: Interactive async timer demonstrating stale closures in callbacks and how `useRef` or functional updates solve them.
@@ -27,79 +68,134 @@ An interactive educational web application built with **React 19, TypeScript, an
 - **Strict Mode Lab**: Visualizing development double-invocations (`Mount → Unmount → Mount`) and cleanup idempotency.
 - **Concurrent React Lab**: `useTransition` and `useDeferredValue` with CPU lag testing to demonstrate non-blocking typing.
 
+---
+
 ### 3. Comprehensive 20-Part Hook Curriculum (18+ Hooks)
-Every hook follows the standardized 20-part educational specification:
-- Core: `useState`, `useEffect`, `useContext`, `useRef`, `useReducer`, `useCallback`, `useMemo`
-- Lifecycle & DOM: `useLayoutEffect`, `useImperativeHandle`
-- Concurrent & Modern: `useTransition`, `useDeferredValue`, `useId`, `useSyncExternalStore`
-- React 19: `useActionState`, `useOptimistic`
+Every hook follows a standardized 20-part educational specification:
+- **Core Hooks**: `useState`, `useEffect`, `useContext`, `useRef`, `useReducer`, `useCallback`, `useMemo`
+- **Lifecycle & DOM**: `useLayoutEffect`, `useImperativeHandle`
+- **Concurrent & Modern**: `useTransition`, `useDeferredValue`, `useId`, `useSyncExternalStore`
+- **React 19 Modern Hooks**: `useActionState`, `useOptimistic`, `useFormStatus`
 
-### 4. Curated Custom Hooks Catalog (40+ Hooks) & Builder
+---
+
+### 4. Curated Custom Hooks Catalog (40+ Hooks) & Builder (`#custom-hooks`)
 - Searchable catalog across State, Effects, Storage, DOM & Sensors, Performance, and Browser APIs.
-- Includes `useLocalStorage`, `useDebounce`, `useInterval`, `useClickOutside`, `useMediaQuery`, `useClipboard`, `usePrevious`, etc.
-- "Build Your Own Hook" wizard generating boilerplate, hints, and test structures.
+- Includes `useLocalStorage`, `useDebounce`, `useInterval`, `useClickOutside`, `useMediaQuery`, `useClipboard`, `usePrevious`, `useThrottle`, `useOnlineStatus`, `useIdleTimer`, etc.
+- **"Build Your Own Hook"** wizard generating boilerplate, hints, parameters, and test structures.
 
-### 5. Real-Time Architectures & Senior Interview Prep
-- 25+ real-time interactive architecture patterns (Counter, Stopwatch, Debounced Search, Shopping Cart, Kanban, Form Validation, Window Resize, etc.).
-- Interactive challenge quizzes: Predict Output, Find Bug, Fix Hook, Optimize.
-- Senior React Engineer interview question bank with short answers, deep dives, and candidate pitfalls.
+<div align="center">
 
-### 6. Local-First Storage & Apple-Inspired Design
-- 100% client-side privacy: Notes, bookmarks, challenge progress, and canvas projects persist in `localStorage`.
-- Settings drawer with **JSON Data Export & Import**.
-- System, Light, and Dark mode support with CSS variables.
-- Global `⌘K` Command Palette for instant keyboard navigation.
+![Custom Hooks Catalog](docs/screenshots/custom_hooks.png)
+
+</div>
+
+---
+
+### 5. Senior React Interview Preparation & Real-Time Challenges (`#challenges`)
+- **Interactive Challenge Lab**:
+  - Predict Output
+  - Find the Bug
+  - Fix the Hook
+  - Optimize Performance
+- **Senior React Interview Simulator**:
+  - Multi-tier difficulty tracks: `Junior`, `Mid`, `Senior`, `Lead`, `Principal`, `Architect`.
+  - Short answers, architectural deep dives, common candidate pitfalls, and interactive follow-up questions.
+
+<div align="center">
+
+![Interactive Challenges](docs/screenshots/challenges.png)
+
+</div>
+
+---
+
+### 6. Universal Command Palette (`⌘K`) with AI Speech-to-Text
+- Global modal searching across all hooks, custom hooks, architecture blueprints, and interview challenges.
+- Fuzzy keyword and full-content matching with highlighted text snippets.
+- **Web Speech API Microphone Input**: Real-time voice search with animated listening indicator and automatic background scroll locking.
+- Fast category filter pills (`All`, `Hooks`, `Custom Hooks`, `Architectures`, `Challenges`, `Interview`).
+
+---
+
+### 7. Local-First Privacy & Zero Backend
+- **100% Client-Side Privacy**: All notes, bookmarks, challenge progress, and canvas projects persist strictly in the browser's `localStorage`.
+- **Zero Cloud Dependence**: No mandatory account registration, cookies, or external databases.
+- **JSON State Backup & Restore**: Export and import your entire workspace state with 1 click from the Settings drawer.
+- **Theme System**: Dark, Light, and System modes with sleek glassmorphic surfaces and high-contrast typography.
+
+---
+
+## Project Structure
+
+```text
+react-hooks/
+├── public/
+│   ├── og-image.svg          # 1200x630 Social card preview
+│   ├── robots.txt            # Search crawler directives
+│   ├── sitemap.xml           # XML sitemap for SEO
+│   └── site.webmanifest      # PWA application manifest
+├── docs/
+│   └── screenshots/          # High-resolution application screenshots
+├── src/
+│   ├── types/                # Strict TypeScript models (Playground, Challenges, Hooks)
+│   ├── styles/               # Design tokens, variables, typography, and glassmorphic UI
+│   ├── hooks/                # Core hooks (useLocalStorage, useClickOutside, useTheme, etc.)
+│   ├── i18n/                 # Localization dictionaries
+│   ├── data/
+│   │   ├── hooks/            # 18+ Comprehensive Hook guides (20-part spec)
+│   │   ├── custom-hooks/     # 40+ Curated custom hook implementations
+│   │   ├── challenges/       # Bug finding, output prediction, and optimization
+│   │   └── interviews/       # Senior React interview question bank
+│   ├── components/
+│   │   ├── ui/               # Primitives (Button, Card, Badge, Modal, Tabs, Tooltip)
+│   │   ├── layout/           # AppShell, Header, Sidebar, CommandPalette, SettingsDrawer
+│   │   ├── visualization/    # RenderVisualizer, ReferentialVisualizer, ClosureVisualizer
+│   │   ├── labs/             # Dedicated hook deep-dive interactive labs
+│   │   └── playground/       # VISUAL CANVAS & COMPONENT BUILDER
+│   │       ├── canvas/       # Dot-grid viewport, SVG wires, CanvasToolbar
+│   │       ├── nodes/        # UIComponentNode (real UI) & LogicHookNode
+│   │       ├── panels/       # ComponentPalette, Inspector, LivePreviewPanel, UIOrderModal
+│   │       ├── engine/       # Code generator, history stack, and wiring engine
+│   │       └── tutorials/    # 50 curated real-time architecture blueprints
+│   └── pages/                # HomePage, PlaygroundPage, HookLessonPage, ChallengesPage, etc.
+└── package.json
+```
 
 ---
 
 ## Getting Started Locally
 
 ### Prerequisites
-- Node.js `v18+` (tested on Node v25)
-- npm `v9+`
+- **Node.js**: `v18.0.0` or higher (tested on Node v20/v24/v25)
+- **Package Manager**: `npm` (v9+) or `pnpm` / `yarn`
 
-### Installation & Development Server
+### Installation & Development
 ```bash
-# 1. Install dependencies
+# 1. Clone repository
+git clone https://github.com/thevarunnayak/react-hooks.git
+cd react-hooks
+
+# 2. Install dependencies
 npm install
 
-# 2. Run local development server
+# 3. Start local development server
 npm run dev
 
-# 3. Open browser at http://localhost:5173
+# 4. Open in browser
+# Navigate to http://localhost:5173
 ```
 
-### Production Build & Type Check
+### Production Build & Linting
 ```bash
+# Type check and build production bundle
 npm run build
-```
 
----
+# Run fast Oxlint static analysis
+npm run lint
 
-## Architecture & Scalable Directory Structure
-
-```text
-src/
-├── types/                # Strict TypeScript models (Hook, Canvas, Challenge, Storage)
-├── styles/               # Apple-style tokens, reset, typography, and utility classes
-├── hooks/                # App custom hooks (useLocalStorage, useTheme, useDebounce, etc.)
-├── components/
-│   ├── ui/               # Reusable UI primitives (Button, Card, Badge, Modal, Tabs, etc.)
-│   ├── layout/           # AppShell, Header, Sidebar, Drawer, CommandPalette, SettingsModal
-│   ├── visualization/    # RenderVisualizer, ReferentialVisualizer, ClosureVisualizer, etc.
-│   ├── labs/             # Dedicated deep-dive labs (useStateLab, useEffectLab, etc.)
-│   ├── playground/       # THE VISUAL CANVAS & REACT COMPONENT BUILDER
-│   │   ├── canvas/       # Infinite viewport, SVG connections, toolbar
-│   │   ├── nodes/        # UIComponentNode (real UI) & LogicHookNode
-│   │   ├── panels/       # ComponentPalette, Inspector, LivePreviewPanel, CodePanel
-│   │   └── engine/       # Code generator, history stack, and serialization
-│   └── tutorials/        # Preset configurations & real-time architectures
-├── data/
-│   ├── hooks/            # 18+ Comprehensive Hook guides (20-part format)
-│   ├── custom-hooks/     # 40+ curated custom hook implementations & demos
-│   ├── challenges/       # Quizzes, output prediction, and debugging
-│   └── interviews/       # Senior React interview question bank
-└── pages/                # HomePage, HookLessonPage, PlaygroundPage, HookMapPage, etc.
+# Preview production build locally
+npm run preview
 ```
 
 ---
@@ -107,20 +203,27 @@ src/
 ## Adding New Content
 
 ### Adding a Hook Lesson
-1. Create a data file in `src/data/hooks/<hookName>.ts` matching the `HookLessonData` interface.
+1. Create a lesson definition in `src/data/hooks/<hookName>.ts` implementing the `HookLessonData` interface.
 2. Export it from `src/data/hooks/index.ts`.
-3. The hook will automatically appear in the Sidebar, Hook Map, and `⌘K` search index.
+3. The hook will automatically populate the Sidebar, Hook Map, and `⌘K` search index.
 
 ### Adding a Custom Hook
-1. Add an item to `CUSTOM_HOOKS_CATALOG` in `src/data/custom-hooks/catalog.ts`.
-2. Include problem, solution, parameters, implementation, and demo code.
+1. Add an entry to `CUSTOM_HOOKS_CATALOG` in `src/data/custom-hooks/catalog.ts`.
+2. Provide category, parameters, returns, implementation code, and an interactive sandbox component.
 
-### Adding a Real-Time Architecture Preset
-1. Define a `PlaygroundProject` in `src/components/playground/tutorials/tutorialConfigs.ts`.
-2. Add the option to the preset selector in `CanvasToolbar.tsx`.
+### Adding a Real-Time Architecture Blueprint
+1. Define a new `PlaygroundProject` configuration in `src/components/playground/tutorials/tutorialConfigs.ts`.
+2. Specify initial nodes, connections, category, difficulty, and educational concepts.
+3. It will immediately appear in the **Load Preset** dropdown on the canvas toolbar.
 
 ---
 
-## Privacy & Zero-Backend Architecture
+## License
 
-All user data (lesson notes, bookmarks, custom canvas projects, and theme preferences) is stored exclusively in the browser's `localStorage`. No accounts, analytics trackers, or external cloud databases are used. You can export or import your entire learning state as a clean JSON backup at any time from the Settings menu.
+Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more information.
+
+---
+
+<div align="center">
+Built with ❤️ for the React Developer Community.
+</div>

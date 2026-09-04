@@ -15,6 +15,7 @@ import {
   Check,
   Search,
   ExternalLink,
+  ArrowUpDown,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Tabs } from '../../ui/Tabs';
@@ -22,6 +23,8 @@ import { Tooltip } from '../../ui/Tooltip';
 import { PlaygroundView } from '../../../constants/enums';
 import { t } from '../../../i18n/i18n';
 import { TUTORIAL_PROJECTS } from '../tutorials/tutorialConfigs';
+import { PlaygroundNode } from '../../../types/playground';
+import { UIOrderModal } from '../panels/UIOrderModal';
 
 export interface CanvasToolbarProps {
   canUndo: boolean;
@@ -41,6 +44,8 @@ export interface CanvasToolbarProps {
   onToggleLeftPanel?: () => void;
   isRightCollapsed?: boolean;
   onToggleRightPanel?: () => void;
+  nodes?: PlaygroundNode[];
+  onReorderUINodes?: (orderedIds: string[]) => void;
 }
 
 export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
@@ -61,9 +66,12 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onToggleLeftPanel,
   isRightCollapsed,
   onToggleRightPanel,
+  nodes,
+  onReorderUINodes,
 }) => {
   // Custom Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [presetSearch, setPresetSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -226,6 +234,44 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
       {/* Right: Custom UI Dropdown & Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* UI Component Order Control */}
+        <Tooltip content="Change the vertical order of UI components in Live Preview" placement="bottom">
+          <button
+            type="button"
+            onClick={() => setIsOrderModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 10px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: isOrderModalOpen ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+              border: `1px solid ${isOrderModalOpen ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all var(--transition-fast)',
+            }}
+          >
+            <ArrowUpDown size={13} style={{ color: 'var(--accent-primary)' }} />
+            <span>UI Order</span>
+            <span
+              style={{
+                fontSize: '10px',
+                padding: '1px 5px',
+                borderRadius: '999px',
+                backgroundColor: 'var(--accent-primary-subtle)',
+                color: 'var(--accent-primary-text)',
+                fontWeight: 700,
+              }}
+            >
+              {nodes?.filter((n) => n.type === 'ui').length ?? 0}
+            </span>
+          </button>
+        </Tooltip>
+
         {/* Custom Presets Dropdown */}
         <div ref={dropdownRef} style={{ position: 'relative' }}>
           <button
@@ -453,6 +499,16 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
           </Button>
         </Tooltip>
       </div>
+
+      {/* UI Component Ordering Modal */}
+      {isOrderModalOpen && (
+        <UIOrderModal
+          isOpen={isOrderModalOpen}
+          onClose={() => setIsOrderModalOpen(false)}
+          nodes={nodes || []}
+          onReorderUINodes={onReorderUINodes || (() => {})}
+        />
+      )}
     </div>
   );
 };

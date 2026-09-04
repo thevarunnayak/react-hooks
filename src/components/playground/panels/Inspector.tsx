@@ -1,11 +1,37 @@
 import React, { useState } from 'react';
 import { PlaygroundNode, PlaygroundConnection } from '../../../types/playground';
-import { Trash2, Copy, Link, Settings, ChevronRight, ChevronLeft, X, PlusCircle, ArrowRight, Zap, Layers, Plus } from 'lucide-react';
+import {
+  Trash2,
+  Copy,
+  Link,
+  Settings,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  PlusCircle,
+  ArrowRight,
+  Zap,
+  Layers,
+  Plus,
+  Database,
+  ShoppingBag,
+  Code,
+  Users,
+  TrendingUp,
+  CheckSquare,
+  Globe,
+  BookOpen,
+  Palette,
+  Table,
+  LayoutGrid,
+  Check,
+} from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { CustomSelect } from '../../ui/CustomSelect';
 import { Tooltip } from '../../ui/Tooltip';
 import { NodeType, UISubtype, LogicSubtype } from '../../../constants/enums';
 import { t } from '../../../i18n/i18n';
+import { DUMMY_DATA_PRESETS, getDummyDataPreset } from '../../../constants/dummyDataPresets';
 
 export interface InspectorProps {
   selectedNode: PlaygroundNode | null;
@@ -1090,6 +1116,208 @@ export const Inspector: React.FC<InspectorProps> = ({
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
               Interactive drag-and-drop task board managing <strong>Todo</strong>, <strong>In Progress</strong>, and <strong>Done</strong> workflow states.
+            </div>
+          </div>
+        )}
+
+        {/* Dummy Data Mock API Dataset Props */}
+        {selectedNode.subtype === 'DummyData' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Title Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
+                DATASET TITLE
+              </label>
+              <input
+                type="text"
+                value={selectedNode.props.title || 'Product Catalog'}
+                onChange={(e) => onUpdateProps(selectedNode.id, { title: e.target.value })}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: 'var(--text-xs)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+
+            {/* Presets Grid */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  CURATED DATASET PRESETS
+                </label>
+                <span style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  8 Available
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                {Object.values(DUMMY_DATA_PRESETS).map((p) => {
+                  const isCurrent = (selectedNode.props.datasetPreset || 'products') === p.id;
+                  const renderPresetIcon = () => {
+                    switch (p.id) {
+                      case 'products': return <ShoppingBag size={12} />;
+                      case 'frameworks': return <Code size={12} />;
+                      case 'team': return <Users size={12} />;
+                      case 'finance': return <TrendingUp size={12} />;
+                      case 'tasks': return <CheckSquare size={12} />;
+                      case 'countries': return <Globe size={12} />;
+                      case 'articles': return <BookOpen size={12} />;
+                      case 'colors': return <Palette size={12} />;
+                      default: return <Database size={12} />;
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() =>
+                        onUpdateProps(selectedNode.id, {
+                          datasetPreset: p.id,
+                          title: p.defaultTitle,
+                          displayStyle: selectedNode.props.displayStyle || p.defaultStyle,
+                          items: [...p.items],
+                          totalCount: p.items.length,
+                        })
+                      }
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isCurrent ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+                        color: isCurrent ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all var(--transition-fast)',
+                      }}
+                    >
+                      <span style={{ color: isCurrent ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+                        {renderPresetIcon()}
+                      </span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.label.split(' ')[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Display Style Selector */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
+                DISPLAY STYLE
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                {[
+                  { id: 'cards', label: 'Cards' },
+                  { id: 'pills', label: 'Pills' },
+                  { id: 'grid', label: 'Grid' },
+                  { id: 'table', label: 'Table' },
+                ].map((st) => {
+                  const isCurrent = (selectedNode.props.displayStyle || 'cards') === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => onUpdateProps(selectedNode.id, { displayStyle: st.id })}
+                      style={{
+                        padding: '5px 6px',
+                        fontSize: '10.5px',
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-sm)',
+                        border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isCurrent ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+                        color: isCurrent ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {st.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Dataset Scale / Virtual Stress Test */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
+                DATASET SCALE (FOR CONCURRENCY TESTS)
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                {[
+                  { label: 'Standard', count: selectedNode.props.items?.length || 10 },
+                  { label: '50 Items', count: 50 },
+                  { label: '10K Stress', count: 10000 },
+                ].map((scale) => {
+                  const isCurrent = (selectedNode.props.totalCount || 10) === scale.count;
+                  return (
+                    <button
+                      key={scale.label}
+                      type="button"
+                      onClick={() => onUpdateProps(selectedNode.id, { totalCount: scale.count })}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        borderRadius: 'var(--radius-xs)',
+                        border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                        backgroundColor: isCurrent ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+                        color: isCurrent ? 'var(--accent-primary-text)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {scale.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Items Editor */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
+                ITEMS LIST (COMMA OR NEWLINE SEPARATED)
+              </label>
+              <textarea
+                rows={3}
+                value={(selectedNode.props.items || []).join('\n')}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const parsed = raw
+                    .split(/[\n,]/)
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  onUpdateProps(selectedNode.id, {
+                    items: parsed,
+                    totalCount: parsed.length,
+                  });
+                }}
+                placeholder="Enter items separated by comma or new line..."
+                style={{
+                  padding: '6px 8px',
+                  fontSize: '11px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)',
+                  resize: 'vertical',
+                }}
+              />
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                {(selectedNode.props.items || []).length} active items in this dataset.
+              </span>
             </div>
           </div>
         )}

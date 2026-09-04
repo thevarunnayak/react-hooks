@@ -698,6 +698,8 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
 
       case 'DummyData': {
         const items: string[] = node.props.items || ['React', 'Next.js', 'TypeScript', 'Tailwind'];
+        const presetKey = node.props.datasetPreset;
+        const displayStyle = node.props.displayStyle;
         return (
           <div
             style={{
@@ -720,9 +722,21 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
                   {node.props.title || 'MOCK DATA'}
                 </span>
               </div>
-              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 600, flexShrink: 0 }}>
-                {node.props.totalCount ? `${node.props.totalCount.toLocaleString()} items` : `${items.length} items`}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                {presetKey && (
+                  <span style={{ fontSize: '8px', padding: '1px 4px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {presetKey}
+                  </span>
+                )}
+                {displayStyle && (
+                  <span style={{ fontSize: '8px', padding: '1px 4px', borderRadius: 'var(--radius-xs)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'capitalize' }}>
+                    {displayStyle}
+                  </span>
+                )}
+                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: 'var(--radius-xs)', backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 600 }}>
+                  {node.props.totalCount ? `${node.props.totalCount.toLocaleString()} items` : `${items.length} items`}
+                </span>
+              </div>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
               {items.slice(0, 4).map((item) => (

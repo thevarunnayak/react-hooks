@@ -24,6 +24,9 @@ export function App() {
   // Brand Splash Screen (shows on initial session launch)
   const [showSplash, setShowSplash] = useState<boolean>(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.search.includes('nosplash')) {
+        return false;
+      }
       return !sessionStorage.getItem('reactlabz_splash_shown');
     } catch {
       return true;

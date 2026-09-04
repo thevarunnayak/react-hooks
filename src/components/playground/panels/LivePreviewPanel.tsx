@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PlaygroundNode, PlaygroundConnection, TraceStep } from '../../../types/playground';
-import { RotateCcw, Zap, SearchX, Search, X, ShoppingBag, Trash2, Plus, Minus, Tag, CheckCircle, ArrowLeft, ArrowRight, Check, Layers, AlertCircle, PanelBottom, PanelRight, Loader2, Ruler, MessageSquare, Target, Sparkles, Sun, Moon, Palette, TrendingUp, Shield, Activity, Timer, Bell, Monitor, Database, GripVertical, Columns3, Smartphone, Tablet, Tv } from 'lucide-react';
+import { RotateCcw, Zap, SearchX, Search, X, ShoppingBag, Trash2, Plus, Minus, Tag, CheckCircle, ArrowLeft, ArrowRight, Check, Layers, AlertCircle, PanelBottom, PanelRight, Loader2, Ruler, MessageSquare, Target, Sparkles, Sun, Moon, Palette, TrendingUp, Shield, Activity, Timer, Bell, Monitor, Database, GripVertical, Columns3, Smartphone, Tablet, Tv, Code, Users, CheckSquare, Globe, BookOpen, ChevronDown, ListFilter, Sliders } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Badge } from '../../ui/Badge';
 import { CustomSelect } from '../../ui/CustomSelect';
 import { formatKeybinding } from '../../../utils/platform';
 import { ExpandedArchitecturesCard } from './architectures/ExpandedArchitecturesPanel';
 import { ErrorBoundary } from '../../ui/ErrorBoundary';
+import { DUMMY_DATA_PRESETS, getDummyDataPreset, DummyDataItem, DummyDataPreset } from '../../../constants/dummyDataPresets';
 
 export interface CartItem {
   id: string;
@@ -72,6 +73,10 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
 
   // Global Theme Context (useContext) state
   const [activeTheme, setActiveTheme] = useState<'dark' | 'light'>('dark');
+
+  // Dummy Data Preset & Style overrides in Live Preview (allows live interactive toggling)
+  const [dummyDataPresetOverrides, setDummyDataPresetOverrides] = useState<Record<string, string>>({});
+  const [dummyDataStyleOverrides, setDummyDataStyleOverrides] = useState<Record<string, 'cards' | 'pills' | 'grid' | 'table'>>({});
 
   // Document Auto-Save Draft state & refs (useRef + useEffect)
   const [docContent, setDocContent] = useState<string>('React hooks enable declarative synchronization with external side-effects.');
@@ -1106,7 +1111,13 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
     });
   };
 
-  const uiNodes = nodes.filter((n) => n.type === 'ui');
+  const uiNodes = nodes
+    .filter((n) => n.type === 'ui')
+    .sort((a, b) => {
+      const orderA = typeof a.props?.uiOrder === 'number' ? a.props.uiOrder : nodes.indexOf(a);
+      const orderB = typeof b.props?.uiOrder === 'number' ? b.props.uiOrder : nodes.indexOf(b);
+      return orderA - orderB;
+    });
 
   const renderKanbanBoard = (nodeId = 'node-kanban-board', title = 'Sprint Task Kanban Board') => {
     const columns: Array<{ col: 'Todo' | 'In Progress' | 'Done'; title: string; color: string; badgeBg: string }> = [
@@ -3737,23 +3748,35 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
         const isDebouncing = Boolean(rawQuery && rawQuery !== debouncedQuery && !hasTransition);
         const isTransitionPending = Boolean(hasTransition && isCatalogPending);
 
-        const rawList: string[] = node.props.items || [
-          'React',
-          'React Native',
-          'Next.js',
-          'TypeScript',
-          'Tailwind CSS',
-          'Redux Toolkit',
-          'GraphQL',
-          'Vite',
-          'Node.js',
-          'Zustand',
-          'PostgreSQL',
-          'Docker',
-        ];
+        // Resolve Preset and Display Style (with live interactive override support)
+        const activePresetKey = dummyDataPresetOverrides[node.id] || node.props.datasetPreset || 'products';
+        const preset = getDummyDataPreset(activePresetKey);
+        const activeStyle: 'cards' | 'pills' | 'grid' | 'table' =
+          dummyDataStyleOverrides[node.id] || node.props.displayStyle || preset.defaultStyle || 'cards';
+        const title = node.props.title || preset.defaultTitle;
+
+        // Determine whether to use rich items or plain items
+        const isCustomPlain = node.props.datasetPreset === 'custom';
+        const rawPlainList: string[] = node.props.items || preset.items;
+        const richItemsList: DummyDataItem[] = preset.richItems || [];
 
         const qLower = activeFilter.toLowerCase();
-        const filteredList = qLower ? rawList.filter((item) => item.toLowerCase().includes(qLower)) : rawList;
+        const filteredRich = richItemsList.filter((item) => {
+          if (!qLower) return true;
+          return (
+            item.title.toLowerCase().includes(qLower) ||
+            (item.subtitle && item.subtitle.toLowerCase().includes(qLower)) ||
+            (item.badge && item.badge.toLowerCase().includes(qLower)) ||
+            (item.value && item.value.toLowerCase().includes(qLower))
+          );
+        });
+
+        const filteredPlain = rawPlainList.filter((item) =>
+          !qLower ? true : item.toLowerCase().includes(qLower)
+        );
+
+        const totalCount = node.props.totalCount || (isCustomPlain ? rawPlainList.length : richItemsList.length);
+        const currentCount = isCustomPlain ? filteredPlain.length : filteredRich.length;
 
         const clearSearch = () => {
           setCatalogInput('');
@@ -3805,48 +3828,68 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
           );
         };
 
+        const renderPresetIcon = (presetId: string, size = 12) => {
+          switch (presetId) {
+            case 'products': return <ShoppingBag size={size} style={{ color: 'var(--accent-primary)' }} />;
+            case 'frameworks': return <Code size={size} style={{ color: '#06b6d4' }} />;
+            case 'team': return <Users size={size} style={{ color: '#8b5cf6' }} />;
+            case 'finance': return <TrendingUp size={size} style={{ color: '#10b981' }} />;
+            case 'tasks': return <CheckSquare size={size} style={{ color: '#f59e0b' }} />;
+            case 'countries': return <Globe size={size} style={{ color: '#3b82f6' }} />;
+            case 'articles': return <BookOpen size={size} style={{ color: '#ec4899' }} />;
+            case 'colors': return <Palette size={size} style={{ color: '#8b5cf6' }} />;
+            default: return <Database size={size} style={{ color: 'var(--accent-primary)' }} />;
+          }
+        };
+
         return (
           <div
             key={node.id}
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px',
+              gap: '12px',
               width: '100%',
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
+              borderRadius: 'var(--radius-xl)',
               padding: '14px',
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            {/* Header with Title, Count and Live Status */}
+            {/* Header with Title, Live Preset Switcher, Style Controls and Status */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 borderBottom: '1px solid var(--border-subtle)',
-                paddingBottom: '8px',
+                paddingBottom: '10px',
                 gap: '8px',
+                flexWrap: 'wrap',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {renderPresetIcon(activePresetKey, 14)}
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      color: 'var(--accent-primary)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {title}
+                  </span>
+                </div>
+
+                {/* Items Counter Badge */}
                 <span
                   style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: 'var(--accent-primary)',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {node.props.title || 'Mock API Catalog'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '9.5px',
-                    padding: '1px 6px',
+                    fontSize: '10px',
+                    padding: '2px 7px',
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--bg-surface-elevated)',
                     color: 'var(--text-muted)',
@@ -3854,19 +3897,95 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                   }}
                 >
                   {node.props.totalCount
-                    ? `${filteredList.length} of ${node.props.totalCount.toLocaleString()} items`
-                    : `${filteredList.length} / ${rawList.length} items`}
+                    ? `${currentCount} of ${node.props.totalCount.toLocaleString()} items`
+                    : `${currentCount} / ${totalCount} items`}
                 </span>
+
+                {/* Live Preset Switcher Dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <select
+                    value={activePresetKey}
+                    onChange={(e) =>
+                      setDummyDataPresetOverrides((prev) => ({
+                        ...prev,
+                        [node.id]: e.target.value,
+                      }))
+                    }
+                    style={{
+                      padding: '2px 6px',
+                      fontSize: '10.5px',
+                      fontWeight: 600,
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                    title="Switch Mock Dataset Preset"
+                  >
+                    {Object.values(DUMMY_DATA_PRESETS).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* Right Side: Style Selector, Debounce / Transition Indicator, Clear Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                {/* Style Switcher Pills */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2px',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    padding: '2px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {(['cards', 'pills', 'grid', 'table'] as const).map((styleOpt) => {
+                    const isCurrent = activeStyle === styleOpt;
+                    return (
+                      <button
+                        key={styleOpt}
+                        type="button"
+                        onClick={() =>
+                          setDummyDataStyleOverrides((prev) => ({
+                            ...prev,
+                            [node.id]: styleOpt,
+                          }))
+                        }
+                        style={{
+                          padding: '2px 6px',
+                          fontSize: '9.5px',
+                          fontWeight: 600,
+                          textTransform: 'capitalize',
+                          borderRadius: 'var(--radius-xs)',
+                          border: 'none',
+                          backgroundColor: isCurrent ? 'var(--accent-primary)' : 'transparent',
+                          color: isCurrent ? '#ffffff' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          transition: 'all var(--transition-fast)',
+                        }}
+                        title={`Display as ${styleOpt}`}
+                      >
+                        {styleOpt}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {isDebouncing && (
                   <span
                     style={{
                       fontSize: '9.5px',
                       color: 'var(--accent-warning)',
                       backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                      padding: '1px 6px',
+                      padding: '2px 6px',
                       borderRadius: 'var(--radius-xs)',
                       fontWeight: 600,
                     }}
@@ -3880,7 +3999,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                       fontSize: '9.5px',
                       color: 'var(--accent-warning)',
                       backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                      padding: '1px 6px',
+                      padding: '2px 6px',
                       borderRadius: 'var(--radius-xs)',
                       fontWeight: 600,
                       display: 'flex',
@@ -3917,8 +4036,8 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
               </div>
             </div>
 
-            {/* Content: List of Matches with Opacity Transition OR Polished Empty State */}
-            {filteredList.length === 0 ? (
+            {/* Content: Rich Multi-Style Dataset OR Polished Empty State */}
+            {currentCount === 0 ? (
               <div
                 style={{
                   padding: '28px 16px',
@@ -3928,7 +4047,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                   alignItems: 'center',
                   gap: '8px',
                   backgroundColor: 'var(--bg-surface-elevated)',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: 'var(--radius-lg)',
                   border: '1px dashed var(--border-default)',
                 }}
               >
@@ -3950,8 +4069,8 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                   <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
                     No Matching Results Found
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '280px', lineHeight: 1.4 }}>
-                    No records matched &ldquo;<strong style={{ color: 'var(--text-primary)' }}>{activeFilter}</strong>&rdquo;. Try searching for &ldquo;React&rdquo;, &ldquo;Next&rdquo;, or &ldquo;Script&rdquo;.
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', maxWidth: '320px', lineHeight: 1.4 }}>
+                    No records matched &ldquo;<strong style={{ color: 'var(--text-primary)' }}>{activeFilter}</strong>&rdquo;. Try searching for different keywords or clear the filter.
                   </span>
                 </div>
                 <Button
@@ -3967,37 +4086,298 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
             ) : (
               <div
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  maxHeight: '200px',
+                  maxHeight: '260px',
                   overflowY: 'auto',
                   opacity: isTransitionPending ? 0.6 : 1,
                   transition: 'opacity 150ms ease',
+                  paddingRight: '2px',
                 }}
               >
-                {filteredList.map((item) => (
-                  <div
-                    key={item}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '7px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-surface-elevated)',
-                      fontSize: '12px',
-                      color: 'var(--text-primary)',
-                      border: '1px solid var(--border-subtle)',
-                      transition: 'background-color var(--transition-fast)',
-                    }}
-                  >
-                    <span>{renderHighlightedText(item, activeFilter)}</span>
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      MATCH
-                    </span>
+                {/* 1. CARDS STYLE */}
+                {activeStyle === 'cards' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {!isCustomPlain &&
+                      filteredRich.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            gap: '10px',
+                            transition: 'all var(--transition-fast)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                            <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {renderHighlightedText(item.title, activeFilter)}
+                            </span>
+                            {item.subtitle && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                {renderHighlightedText(item.subtitle, activeFilter)}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            {item.badge && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  padding: '2px 7px',
+                                  borderRadius: 'var(--radius-full)',
+                                  backgroundColor: item.badgeColor ? `${item.badgeColor}22` : 'var(--accent-primary-subtle)',
+                                  color: item.badgeColor || 'var(--accent-primary)',
+                                  fontWeight: 600,
+                                  border: `1px solid ${item.badgeColor ? `${item.badgeColor}44` : 'var(--border-subtle)'}`,
+                                }}
+                              >
+                                {renderHighlightedText(item.badge, activeFilter)}
+                              </span>
+                            )}
+                            {item.value && (
+                              <span
+                                style={{
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: item.valueColor || 'var(--accent-success)',
+                                  fontFamily: 'var(--font-mono)',
+                                }}
+                              >
+                                {renderHighlightedText(item.value, activeFilter)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                    {isCustomPlain &&
+                      filteredPlain.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '12px',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          <span>{renderHighlightedText(item, activeFilter)}</span>
+                          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            MATCH
+                          </span>
+                        </div>
+                      ))}
                   </div>
-                ))}
+                )}
+
+                {/* 2. PILLS STYLE */}
+                {activeStyle === 'pills' && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {!isCustomPlain &&
+                      filteredRich.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '5px 10px',
+                            borderRadius: 'var(--radius-full)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-default)',
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            color: 'var(--text-primary)',
+                            boxShadow: 'var(--shadow-xs)',
+                          }}
+                        >
+                          <span>{renderHighlightedText(item.title, activeFilter)}</span>
+                          {item.value && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                padding: '1px 5px',
+                                borderRadius: 'var(--radius-xs)',
+                                backgroundColor: item.badgeColor ? `${item.badgeColor}22` : 'rgba(99, 102, 241, 0.12)',
+                                color: item.badgeColor || 'var(--accent-primary)',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {renderHighlightedText(item.value, activeFilter)}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+
+                    {isCustomPlain &&
+                      filteredPlain.map((item, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-full)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-default)',
+                            fontSize: '11.5px',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {renderHighlightedText(item, activeFilter)}
+                        </span>
+                      ))}
+                  </div>
+                )}
+
+                {/* 3. GRID STYLE */}
+                {activeStyle === 'grid' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
+                    {!isCustomPlain &&
+                      filteredRich.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '4px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                              {renderHighlightedText(item.title, activeFilter)}
+                            </span>
+                            {item.badge && (
+                              <span
+                                style={{
+                                  fontSize: '9.5px',
+                                  padding: '1px 5px',
+                                  borderRadius: 'var(--radius-xs)',
+                                  backgroundColor: item.badgeColor ? `${item.badgeColor}22` : 'var(--accent-primary-subtle)',
+                                  color: item.badgeColor || 'var(--accent-primary)',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {renderHighlightedText(item.badge, activeFilter)}
+                              </span>
+                            )}
+                          </div>
+                          {item.subtitle && (
+                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                              {renderHighlightedText(item.subtitle, activeFilter)}
+                            </span>
+                          )}
+                          {item.value && (
+                            <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid var(--border-subtle)' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: item.valueColor || 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
+                                {renderHighlightedText(item.value, activeFilter)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                    {isCustomPlain &&
+                      filteredPlain.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '12px',
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {renderHighlightedText(item, activeFilter)}
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* 4. TABLE STYLE */}
+                {activeStyle === 'table' && (
+                  <div style={{ width: '100%', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Item Name</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600 }}>Category / Role</th>
+                          <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Metric / Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {!isCustomPlain &&
+                          filteredRich.map((item) => (
+                            <tr
+                              key={item.id}
+                              style={{
+                                borderBottom: '1px solid var(--border-subtle)',
+                                transition: 'background-color var(--transition-fast)',
+                              }}
+                            >
+                              <td style={{ padding: '7px 8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span>{renderHighlightedText(item.title, activeFilter)}</span>
+                                  {item.subtitle && (
+                                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                      {renderHighlightedText(item.subtitle, activeFilter)}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '7px 8px' }}>
+                                {item.badge && (
+                                  <span
+                                    style={{
+                                      fontSize: '9.5px',
+                                      padding: '1px 6px',
+                                      borderRadius: 'var(--radius-xs)',
+                                      backgroundColor: item.badgeColor ? `${item.badgeColor}22` : 'var(--accent-primary-subtle)',
+                                      color: item.badgeColor || 'var(--accent-primary)',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {renderHighlightedText(item.badge, activeFilter)}
+                                  </span>
+                                )}
+                              </td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)', color: item.valueColor || 'var(--accent-primary)' }}>
+                                {item.value ? renderHighlightedText(item.value, activeFilter) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+
+                        {isCustomPlain &&
+                          filteredPlain.map((item, idx) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td colSpan={2} style={{ padding: '7px 8px', color: 'var(--text-primary)' }}>
+                                {renderHighlightedText(item, activeFilter)}
+                              </td>
+                              <td style={{ padding: '7px 8px', textAlign: 'right', color: 'var(--text-muted)', fontSize: '9px', fontFamily: 'var(--font-mono)' }}>
+                                MATCH
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
