@@ -45,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'hook-map', label: 'Visual Hook Map', icon: <Map size={16} /> },
     { id: 'challenges', label: 'Interactive Challenges', icon: <CheckCircle2 size={16} /> },
     { id: 'interview', label: 'Interview Preparation', icon: <HelpCircle size={16} /> },
+    { id: 'about', label: 'About & Story', icon: <Sparkles size={16} style={{ color: 'var(--accent-warning)' }} /> },
   ];
 
   const coreHooks = HOOKS_CATALOG.filter((h) =>

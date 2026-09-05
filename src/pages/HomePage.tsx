@@ -20,6 +20,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { HOOKS_CATALOG } from '../data/hooks';
+import { t } from '../i18n/i18n';
 
 export interface HomePageProps {
   onNavigate: (route: string, param?: string) => void;
@@ -473,6 +474,60 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, completedLessons
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Community & Creator Story Footer Banner */}
+      <section
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 'var(--space-4) var(--space-6)',
+          borderRadius: 'var(--radius-lg)',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-default)',
+          flexWrap: 'wrap',
+          gap: 'var(--space-3)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontWeight: 800,
+              fontSize: '14px',
+              flexShrink: 0,
+            }}
+          >
+            VN
+          </div>
+          <div>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {t('home.communityBanner.title')}
+            </div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+              {t('home.communityBanner.subtitle')}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Sparkles size={14} style={{ color: '#ffffff' }} />}
+            onClick={() => onNavigate('about')}
+          >
+            {t('home.communityBanner.ctaBtn')}
+          </Button>
         </div>
       </section>
     </div>

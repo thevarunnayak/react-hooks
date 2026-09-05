@@ -21,6 +21,8 @@ export interface VisualCanvasProps {
   onDeleteNode?: (id: string) => void;
   onDeleteConnection?: (id: string) => void;
   onUpdateProps?: (nodeId: string, updatedProps: Record<string, any>) => void;
+  onWrapNodes?: (sourceNodeId: string, targetNodeId: string) => void;
+  onSwitchToLayout?: () => void;
   resolvedValues?: Record<string, any>;
   zoom?: number;
 }
@@ -41,12 +43,15 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
   onDeleteNode,
   onDeleteConnection,
   onUpdateProps,
+  onWrapNodes,
+  onSwitchToLayout,
   resolvedValues = {},
   zoom = 0.8,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 40, y: 40 });
   const [isPanning, setIsPanning] = useState(false);
+  const [canvasDropTargetId, setCanvasDropTargetId] = useState<string | null>(null);
   const panStartRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(zoom);
   const [nodeDimensions, setNodeDimensions] = useState<Record<string, { width: number; height: number }>>({});
@@ -223,6 +228,26 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
             x: Math.max(10, newX),
             y: Math.max(10, newY),
           });
+
+          // Check if dragging over another UI node on canvas
+          const draggedId = activeDragRef.current.nodeId;
+          const draggedNode = nodes.find((n) => n.id === draggedId);
+          if (draggedNode && draggedNode.type === 'ui') {
+            const currentPos = { x: newX, y: newY };
+            const draggedDim = nodeDimensions[draggedId] || { width: 220, height: 100 };
+            const target = nodes.find((n) => {
+              if (n.id === draggedId || n.type !== 'ui') return false;
+              const targetDim = nodeDimensions[n.id] || { width: 220, height: 100 };
+              const overlapX =
+                currentPos.x + draggedDim.width > n.position.x &&
+                currentPos.x < n.position.x + targetDim.width;
+              const overlapY =
+                currentPos.y + draggedDim.height > n.position.y &&
+                currentPos.y < n.position.y + targetDim.height;
+              return overlapX && overlapY;
+            });
+            setCanvasDropTargetId(target ? target.id : null);
+          }
         }
       }
     };
@@ -233,10 +258,14 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
       }
 
       if (activeDragRef.current) {
+        const draggedId = activeDragRef.current.nodeId;
         if (!activeDragRef.current.hasMoved) {
-          onSelectNode(activeDragRef.current.nodeId);
+          onSelectNode(draggedId);
+        } else if (canvasDropTargetId && onWrapNodes) {
+          onWrapNodes(draggedId, canvasDropTargetId);
         }
         activeDragRef.current = null;
+        setCanvasDropTargetId(null);
       }
     };
 
@@ -247,7 +276,7 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
       window.removeEventListener('mousemove', handleWindowMouseMove);
       window.removeEventListener('mouseup', handleWindowMouseUp);
     };
-  }, [isPanning, pan.x, pan.y, zoom, onMoveNode, onSelectNode]);
+  }, [isPanning, pan.x, pan.y, zoom, onMoveNode, onSelectNode, nodes, nodeDimensions, canvasDropTargetId, onWrapNodes]);
 
   // Mouse down on background starts panning or clears active selection
   const handleMouseDownBackground = (e: React.MouseEvent) => {
@@ -514,6 +543,7 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
                   node={node}
                   isSelected={isSelected}
                   isExecuting={isExecuting}
+                  isDropTarget={node.id === canvasDropTargetId}
                   parentLabel={parentNode ? parentNode.props.content || parentNode.label || parentNode.subtype : undefined}
                   childNodes={childNodes}
                   onNodeMouseDown={handleNodeMouseDown}

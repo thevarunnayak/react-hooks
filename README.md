@@ -1,4 +1,4 @@
-# ReactLabz — Interactive React Hooks Studio & Visual Architecture Lab
+# ReactLabz - Interactive React Hooks Studio & Visual Architecture Lab
 
 <div align="center">
 
@@ -27,6 +27,9 @@ A visual, hands-on diagnostic laboratory for React engineers. Inspect state snap
 ### Infinite Visual Component Builder & Canvas Playground
 ![Visual Builder Canvas](docs/screenshots/playground.png)
 
+### Visual Layout & Flex Studio
+![Layout & Flex Studio](docs/screenshots/layout_studio.png)
+
 </div>
 
 ---
@@ -45,9 +48,9 @@ A visual, hands-on diagnostic laboratory for React engineers. Inspect state snap
   - **Interactive Kanban Board**: Fully draggable cards across columns with real-time status counts.
 - **Logic & Hook Nodes**: Add `useState`, `useEffect`, `useRef`, `useReducer`, `useMemo`, `useCallback`, `useContext`, `useId`, `useTransition`, `useLayoutEffect`, `useDeferredValue`, `useOptimistic`, `useActionState`, `useFormStatus`, `useSyncExternalStore`, and Timers.
 - **Semantic Port Wiring**:
-  - `Event` (amber) — Button clicks → state setter / action dispatch
-  - `Data` (cyan) — State values → UI text / input content
-  - `Dependency` (purple) — State triggers → `useEffect` / `useMemo` dependency arrays
+  - `Event` (amber): Button clicks → state setter / action dispatch
+  - `Data` (cyan): State values → UI text / input content
+  - `Dependency` (purple): State triggers → `useEffect` / `useMemo` dependency arrays
 - **Interactive Live Preview with Execution Tracing**: Interact with the rendered application; button clicks pulse the path across the canvas (`User Click → Event → State Update → Render → UI Update`).
 - **UI Sequence Ordering Control**:
   - Reorder components via Up/Down/Top/Bottom controls or native **drag-and-drop handles**.
@@ -59,7 +62,27 @@ A visual, hands-on diagnostic laboratory for React engineers. Inspect state snap
 
 ---
 
-### 2. Deep Interactive Visualizers & Diagnostics
+### 2. Visual Layout & Flex Studio (`#playground` - Layout Studio)
+*Hierarchical flexbox composition, recursive container nesting, and responsive device simulation.*
+- **Visual Container Composer**: Wrap arbitrary UI elements into semantic `<div>` or `<Card>` containers with instant flex direction toggling (`Row ⇄` / `Col ⇅`).
+- **Custom Justify, Gap & Item Sizing Controls**:
+  - **Custom Justify Dropdown**: Full flexbox alignment support (`Start`, `Center`, `End`, `Space Between`, `Space Around`, `Space Evenly`, `Stretch`) plus an inline **Custom Value** input for specialized alignment rules.
+  - **Custom Gap Dropdown**: Comprehensive presets (`0px`, `4px`, `8px`, `12px`, `16px`, `20px`, `24px`, `32px`, `40px`), rapid `-2px` / `+2px` stepper buttons, and an inline **Custom Gap** field supporting arbitrary pixel or rem spacing (`14px`, `18px`, `2rem`, etc.).
+  - **Custom Item Flex Sizing Dropdown**: Replaced native selects on child items with a custom sizing popover featuring presets (`flex-1`, `auto`, `100% Width`, `50% Width`, `33.3% Width`, `25% Width`), quick fixed-width chips (`120px` to `320px`), and an arbitrary custom width input (`px`, `%`, `fr`).
+  - **Portal Floating Menus**: Custom menus float above the canvas layout with smooth backdrop blur and boundary collision protection, preventing clipping from container rounded borders.
+- **Recursive Container Nesting & Ejection**:
+  - Drag containers into other containers to create complex multi-tiered UI architectures with full drag-and-drop reordering.
+  - Dedicated **Eject** control to promote nested containers back to the top-level document flow.
+  - **Unwrap / Dissolve** containers cleanly back to standalone elements with one click.
+- **Responsive Multi-Device Preview**:
+  - Live preview simulation across **Desktop**, **Laptop**, **Tablet**, and **Mobile** viewports with realistic container wrapping and styling.
+  - Switch between **Split View** (Structure Tree + Interactive Layout Canvas) and **Structure Only** focus mode.
+- **Smart Auto-Grouping**: 1-click clustering that detects canvas Y-axis proximity and groups visually aligned components into flex rows automatically.
+- **Code Generation Sync**: Generates clean, production-ready React JSX with inline flexbox styles and nested containers that mirror the layout hierarchy exactly.
+
+---
+
+### 3. Deep Interactive Visualizers & Diagnostics
 - **Render Visualizer**: Live render counters and causality diffs ("Why did this render?").
 - **Referential Equality Visualizer**: Live comparison of memory addresses (`0xCAFE` vs new allocations), explaining why unmemoized objects break `useEffect` and `React.memo`.
 - **Closure Visualizer**: Interactive async timer demonstrating stale closures in callbacks and how `useRef` or functional updates solve them.
@@ -70,7 +93,7 @@ A visual, hands-on diagnostic laboratory for React engineers. Inspect state snap
 
 ---
 
-### 3. Comprehensive 20-Part Hook Curriculum (18+ Hooks)
+### 4. Comprehensive 20-Part Hook Curriculum (18+ Hooks)
 Every hook follows a standardized 20-part educational specification:
 - **Core Hooks**: `useState`, `useEffect`, `useContext`, `useRef`, `useReducer`, `useCallback`, `useMemo`
 - **Lifecycle & DOM**: `useLayoutEffect`, `useImperativeHandle`
@@ -79,7 +102,7 @@ Every hook follows a standardized 20-part educational specification:
 
 ---
 
-### 4. Curated Custom Hooks Catalog (40+ Hooks) & Builder (`#custom-hooks`)
+### 5. Curated Custom Hooks Catalog (40+ Hooks) & Builder (`#custom-hooks`)
 - Searchable catalog across State, Effects, Storage, DOM & Sensors, Performance, and Browser APIs.
 - Includes `useLocalStorage`, `useDebounce`, `useInterval`, `useClickOutside`, `useMediaQuery`, `useClipboard`, `usePrevious`, `useThrottle`, `useOnlineStatus`, `useIdleTimer`, etc.
 - **"Build Your Own Hook"** wizard generating boilerplate, hints, parameters, and test structures.
@@ -92,7 +115,7 @@ Every hook follows a standardized 20-part educational specification:
 
 ---
 
-### 5. Senior React Interview Preparation & Real-Time Challenges (`#challenges`)
+### 6. Senior React Interview Preparation & Real-Time Challenges (`#challenges`)
 - **Interactive Challenge Lab**:
   - Predict Output
   - Find the Bug
@@ -110,7 +133,7 @@ Every hook follows a standardized 20-part educational specification:
 
 ---
 
-### 6. Universal Command Palette (`⌘K`) with AI Speech-to-Text
+### 7. Universal Command Palette (`⌘K`) with AI Speech-to-Text
 - Global modal searching across all hooks, custom hooks, architecture blueprints, and interview challenges.
 - Fuzzy keyword and full-content matching with highlighted text snippets.
 - **Web Speech API Microphone Input**: Real-time voice search with animated listening indicator and automatic background scroll locking.
@@ -118,11 +141,18 @@ Every hook follows a standardized 20-part educational specification:
 
 ---
 
-### 7. Local-First Privacy & Zero Backend
+### 8. Local-First Privacy & Zero Backend
 - **100% Client-Side Privacy**: All notes, bookmarks, challenge progress, and canvas projects persist strictly in the browser's `localStorage`.
 - **Zero Cloud Dependence**: No mandatory account registration, cookies, or external databases.
 - **JSON State Backup & Restore**: Export and import your entire workspace state with 1 click from the Settings drawer.
 - **Theme System**: Dark, Light, and System modes with sleek glassmorphic surfaces and high-contrast typography.
+
+---
+
+### 9. Origin Story & Community Ideas Mailbox (`#about`)
+- **The Core Problem Statement**: Why mastering React hooks is deceptively difficult when candidates only memorize surface syntax without understanding Fiber reconciliation, closures, and the reactive render pipeline.
+- **Origin & Vision**: The story of turning invisible runtime mechanics into an interactive visual diagnostic laboratory.
+- **Community Co-Creation**: Direct suggestion mailbox to submit custom UI ideas, tricky interview questions, and feature requests.
 
 ---
 

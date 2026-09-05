@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrandLogo } from './BrandLogo';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export interface SplashScreenProps {
   onFinish?: () => void;
@@ -15,9 +15,29 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [statusText, setStatusText] = useState('Initializing React 19 Hook Engines...');
   const [isFadingOut, setIsFadingOut] = useState(false);
 
+  const onFinishRef = useRef(onFinish);
+  useEffect(() => {
+    onFinishRef.current = onFinish;
+  }, [onFinish]);
+
+  const hasFinishedRef = useRef(false);
+
+  const triggerFinish = useCallback((delayMs = 380) => {
+    if (hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
+    setIsFadingOut(true);
+    setTimeout(() => {
+      onFinishRef.current?.();
+    }, delayMs);
+  }, []);
+
   useEffect(() => {
     const startTime = Date.now();
+    let completed = false;
+
+    // Use 20ms interval so progression runs reliably regardless of tab focus or RAF throttling
     const interval = setInterval(() => {
+      if (completed) return;
       const elapsed = Date.now() - startTime;
       const pct = Math.min(100, Math.round((elapsed / minDurationMs) * 100));
       setProgress(pct);
@@ -33,19 +53,20 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       }
 
       if (pct >= 100) {
+        completed = true;
         clearInterval(interval);
         setTimeout(() => {
-          setIsFadingOut(true);
-          setTimeout(() => {
-            onFinish?.();
-          }, 400);
-        }, 150);
+          triggerFinish(380);
+        }, 120);
       }
-    }, 25);
+    }, 20);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-        handleSkip();
+        e.preventDefault();
+        completed = true;
+        clearInterval(interval);
+        triggerFinish(180);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -54,13 +75,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       clearInterval(interval);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [minDurationMs, onFinish]);
+  }, [minDurationMs, triggerFinish]);
 
   const handleSkip = () => {
-    setIsFadingOut(true);
-    setTimeout(() => {
-      onFinish?.();
-    }, 250);
+    triggerFinish(180);
   };
 
   return (
@@ -170,6 +188,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
         {/* Sleek Progress Track */}
         <div
+          id="splash-progress-track"
           style={{
             width: '100%',
             maxWidth: '280px',
@@ -182,6 +201,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           }}
         >
           <div
+            id="splash-progress-bar"
+            role="progressbar"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
             style={{
               height: '100%',
               width: `${progress}%`,
@@ -206,8 +230,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
             fontFamily: 'var(--font-mono, monospace)',
           }}
         >
-          <span style={{ color: '#94a3b8' }}>{statusText}</span>
-          <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{progress}%</span>
+          <span id="splash-status-text" style={{ color: '#94a3b8' }}>{statusText}</span>
+          <span id="splash-progress-percent" style={{ fontWeight: 600, color: '#e2e8f0' }}>{progress}%</span>
         </div>
 
         {/* Skip Hint */}

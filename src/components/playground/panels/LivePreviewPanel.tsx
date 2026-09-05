@@ -20,12 +20,14 @@ export interface LivePreviewPanelProps {
   nodes: PlaygroundNode[];
   connections: PlaygroundConnection[];
   onTraceAction?: (step: TraceStep) => void;
+  activeDevice?: 'desktop' | 'laptop' | 'tablet' | 'mobile';
 }
 
 export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
   nodes,
   connections,
   onTraceAction,
+  activeDevice = 'desktop',
 }) => {
   // Live state values mapped by hook node id
   const [hookStates, setHookStates] = useState<Record<string, any>>({});
@@ -1813,6 +1815,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
             key={node.id}
             variant={safeBtnVariant}
             onClick={() => triggerEvent(node.id, 'onClick')}
+            style={node.props?.layoutGroup ? { width: '100%', justifyContent: 'center' } : undefined}
           >
             {buttonLabel}
           </Button>
@@ -5066,6 +5069,165 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
 
   const rootNodes = uiNodes.filter((n) => !n.parentId || !uiNodes.some((p) => p.id === n.parentId));
 
+  // Render root nodes respecting flexbox layoutGroup rows/containers (with recursive nested containers)
+  const renderLayoutNodes = () => {
+    const renderedGroups = new Set<string>();
+    const elements: React.ReactNode[] = [];
+
+    const renderContainerGroup = (groupId: string): React.ReactNode => {
+      const groupNodes = uiNodes.filter((n) => n.props?.layoutGroup === groupId);
+      if (groupNodes.length === 0) return null;
+      const realGroupNodes = groupNodes.filter((n) => !n.props?.isContainerHolder);
+      const firstNode = groupNodes[0];
+      const isRow = (firstNode?.props?.containerDirection || 'row') === 'row';
+      const isGrid = firstNode?.props?.containerDisplay === 'grid';
+      const isCard =
+        firstNode?.props?.containerType === 'card' ||
+        (firstNode?.props?.containerBorder === true && firstNode?.props?.containerType !== 'div');
+
+      // Find any nested container groups inside this container
+      const nestedGroupIds: string[] = [];
+      uiNodes.forEach((n) => {
+        const lg = n.props?.layoutGroup;
+        if (lg && lg !== groupId && n.props?.parentGroup === groupId && !nestedGroupIds.includes(lg)) {
+          nestedGroupIds.push(lg);
+        }
+      });
+
+      const hasChildren = realGroupNodes.length > 0 || nestedGroupIds.length > 0;
+
+      if (!hasChildren) {
+        return (
+          <div
+            key={`layout-group-${groupId}`}
+            style={{
+              width: '100%',
+              padding: '24px 16px',
+              borderRadius: isCard ? (firstNode?.props?.containerRadius || 'var(--radius-xl)') : 'var(--radius-md)',
+              border: isCard ? '1px solid var(--border-default)' : '1.5px dashed var(--border-default)',
+              backgroundColor: isCard
+                ? activeTheme === 'dark'
+                  ? 'var(--bg-surface-elevated)'
+                  : '#ffffff'
+                : 'transparent',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              color: 'var(--text-muted)',
+              fontSize: '12px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>Empty {isCard ? 'Card' : 'Div'} Container</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              Drag elements into this container in Layout Studio
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          key={`layout-group-${groupId}`}
+          style={{
+            display: isGrid ? 'grid' : 'flex',
+            gridTemplateColumns: isGrid ? 'repeat(auto-fit, minmax(180px, 1fr))' : undefined,
+            flexDirection: isRow ? 'row' : 'column',
+            justifyContent: firstNode?.props?.containerJustify || 'flex-start',
+            alignItems: firstNode?.props?.containerAlign || 'center',
+            flexWrap: 'wrap', // In case of overlap, move to next line!
+            gap: firstNode?.props?.containerGap || '12px',
+            width: '100%',
+            padding: isCard ? (firstNode?.props?.containerPadding || '16px') : '0px',
+            borderRadius: isCard ? (firstNode?.props?.containerRadius || 'var(--radius-xl)') : '0px',
+            backgroundColor: isCard
+              ? activeTheme === 'dark'
+                ? 'var(--bg-surface-elevated)'
+                : '#ffffff'
+              : 'transparent',
+            border: isCard ? '1px solid var(--border-default)' : 'none',
+            boxShadow: isCard ? 'var(--shadow-sm)' : 'none',
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* Render nested containers recursively */}
+          {nestedGroupIds.map((nestedGroupId) => (
+            <div
+              key={`nested-wrap-${nestedGroupId}`}
+              style={{
+                flex: '1 1 0%',
+                width: '100%',
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                boxSizing: 'border-box',
+              }}
+            >
+              {renderContainerGroup(nestedGroupId)}
+            </div>
+          ))}
+
+          {/* Render direct leaf nodes */}
+          {realGroupNodes.map((child) => {
+            const childWidth = child.props?.flexWidth;
+            const isFlex1 = childWidth === 'flex-1' || !childWidth;
+            return (
+              <div
+                key={child.id}
+                style={{
+                  flex: isFlex1 ? '1 1 0%' : 'none',
+                  width:
+                    childWidth === 'full' || childWidth === '100%'
+                      ? '100%'
+                      : childWidth === '1/2' || childWidth === '50%'
+                      ? 'calc(50% - 6px)'
+                      : childWidth === '1/3' || childWidth === '33.3%'
+                      ? 'calc(33.333% - 8px)'
+                      : childWidth === '1/4' || childWidth === '25%'
+                      ? 'calc(25% - 8px)'
+                      : childWidth === 'auto'
+                      ? 'auto'
+                      : childWidth && !isFlex1
+                      ? childWidth
+                      : isRow && !isFlex1
+                      ? undefined
+                      : '100%',
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {renderUIElement(child)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    rootNodes.forEach((node) => {
+      // Nested containers are rendered recursively by their parent container
+      if (node.props?.parentGroup) return;
+      if (node.props?.isContainerHolder && !node.props?.layoutGroup) return;
+      const group = node.props?.layoutGroup;
+      if (group) {
+        if (!renderedGroups.has(group)) {
+          renderedGroups.add(group);
+          elements.push(renderContainerGroup(group));
+        }
+      } else {
+        if (!node.props?.isContainerHolder) {
+          elements.push(renderUIElement(node));
+        }
+      }
+    });
+
+    return elements;
+  };
+
   return (
     <div
       style={{
@@ -5224,8 +5386,29 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
               Workspace is empty. Add UI components and hooks to render your live application!
             </div>
           ) : (
-            <div style={{ width: '100%', maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {rootNodes.map(renderUIElement)}
+            <div
+              style={{
+                width: '100%',
+                maxWidth:
+                  activeDevice === 'mobile'
+                    ? '375px'
+                    : activeDevice === 'tablet'
+                    ? '768px'
+                    : activeDevice === 'laptop'
+                    ? '1024px'
+                    : '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                border: activeDevice === 'mobile' ? '8px solid var(--border-default)' : 'none',
+                borderRadius: activeDevice === 'mobile' ? '36px' : 'none',
+                padding: activeDevice === 'mobile' ? '28px 14px' : '0px',
+                backgroundColor: activeDevice === 'mobile' ? 'var(--bg-surface)' : 'transparent',
+                boxShadow: activeDevice === 'mobile' ? 'var(--shadow-xl)' : 'none',
+                transition: 'all 200ms ease-out',
+              }}
+            >
+              {renderLayoutNodes()}
 
               {/* Kanban Board Columns View (rendered if not already provided by a Kanban UI node) */}
               {!nodes.some((n) => n.subtype === 'Kanban') && nodes.some((n) => n.id === 'node-head-kanban') && (

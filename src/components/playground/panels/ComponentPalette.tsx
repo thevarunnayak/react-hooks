@@ -25,6 +25,7 @@ import {
   Eye,
   Database,
   Columns3,
+  Boxes,
 } from 'lucide-react';
 import { Tooltip } from '../../ui/Tooltip';
 import { NodeType, UISubtype, LogicSubtype } from '../../../constants/enums';
@@ -57,6 +58,7 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     { subtype: UISubtype.TEXT, label: 'Text Display', icon: <Type size={14} />, desc: t('playground.palette.textDesc') },
     { subtype: UISubtype.DUMMY_DATA, label: 'Dummy Data', icon: <Database size={14} style={{ color: '#6366f1' }} />, desc: 'Mock API dataset with live search filtering' },
     { subtype: UISubtype.BADGE, label: 'Badge', icon: <Tag size={14} />, desc: 'Status pill badge' },
+    { subtype: UISubtype.CONTAINER, label: 'Div Wrapper', icon: <Boxes size={14} style={{ color: 'var(--accent-primary)' }} />, desc: 'Pure <div> flex container with no styles' },
     { subtype: UISubtype.CARD, label: 'Card Container', icon: <Square size={14} />, desc: t('playground.palette.cardDesc') },
     { subtype: UISubtype.FORM, label: 'Form Container', icon: <FileText size={14} />, desc: t('playground.palette.formDesc') },
     { subtype: UISubtype.KANBAN, label: 'Kanban Board', icon: <Columns3 size={14} style={{ color: '#8b5cf6' }} />, desc: t('playground.palette.kanbanDesc') },

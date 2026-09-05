@@ -9,6 +9,7 @@ export interface UIComponentNodeProps {
   node: PlaygroundNode;
   isSelected: boolean;
   isExecuting?: boolean;
+  isDropTarget?: boolean;
   onNodeMouseDown: (id: string, e: React.MouseEvent) => void;
   onPortClick: (nodeId: string, port: NodePort, e: React.MouseEvent) => void;
   resolvedProps?: Record<string, any>;
@@ -17,11 +18,12 @@ export interface UIComponentNodeProps {
   onResize?: (id: string, width: number, height: number) => void;
   onUpdateProps?: (id: string, newProps: Record<string, any>) => void;
 }
-
+ 
 export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
   node,
   isSelected,
   isExecuting,
+  isDropTarget,
   onNodeMouseDown,
   onPortClick,
   resolvedProps = {},
@@ -783,12 +785,16 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
         padding: '10px 12px',
         borderRadius: 'var(--radius-lg)',
         backgroundColor: 'var(--bg-surface)',
-        border: isSelected
+        border: isDropTarget
+          ? '2.5px dashed var(--accent-primary)'
+          : isSelected
           ? '2px solid var(--accent-primary)'
           : isExecuting
           ? '2px solid var(--accent-warning)'
           : '1px solid var(--border-default)',
-        boxShadow: isSelected
+        boxShadow: isDropTarget
+          ? '0 0 0 4px var(--accent-primary-subtle), 0 12px 32px rgba(99, 102, 241, 0.4)'
+          : isSelected
           ? '0 0 0 3px rgba(59, 130, 246, 0.25), 0 8px 24px rgba(0, 0, 0, 0.25)'
           : isExecuting
           ? '0 0 0 3px rgba(245, 158, 11, 0.25), 0 8px 24px rgba(0, 0, 0, 0.25)'
@@ -800,7 +806,7 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
         gap: '6px',
         userSelect: 'none',
         transition: 'border-color 150ms ease, box-shadow 150ms ease',
-        zIndex: isSelected ? 10 : 2,
+        zIndex: isDropTarget ? 20 : isSelected ? 10 : 2,
         width: 'fit-content',
         minWidth: '220px',
         maxWidth: '380px',
@@ -808,6 +814,33 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
       }}
       className={`canvas-node canvas-ui-node ${isExecuting ? 'animate-pulse' : ''}`}
     >
+      {/* Canvas Drop Target Indicator */}
+      {isDropTarget && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '-28px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'var(--accent-primary)',
+            color: '#ffffff',
+            padding: '3px 10px',
+            borderRadius: '999px',
+            fontSize: '10.5px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            boxShadow: 'var(--shadow-md)',
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            zIndex: 100,
+          }}
+        >
+          <span>📦 Drop to Wrap in Div</span>
+        </div>
+      )}
+
       {/* Node Top Label */}
       <div
         style={{
@@ -827,6 +860,23 @@ export const UIComponentNode: React.FC<UIComponentNodeProps> = ({
           <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {node.subtype}
           </span>
+          {node.props?.layoutGroup && (
+            <span
+              style={{
+                fontSize: '8.5px',
+                padding: '1px 5px',
+                borderRadius: 'var(--radius-xs)',
+                backgroundColor: 'var(--accent-primary-subtle)',
+                color: 'var(--accent-primary)',
+                fontWeight: 700,
+                border: '1px solid var(--accent-primary)',
+                flexShrink: 0,
+              }}
+              title={`Belongs to flex container: ${node.props.layoutGroupName || 'Div'}`}
+            >
+              {node.props.containerType === 'card' ? 'Card' : 'Div'}
+            </span>
+          )}
           {parentLabel && (
             <span
               style={{

@@ -16,6 +16,11 @@ import {
   Search,
   ExternalLink,
   ArrowUpDown,
+  Layers,
+  Monitor,
+  Laptop,
+  Tablet,
+  Smartphone,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Tabs } from '../../ui/Tabs';
@@ -38,8 +43,10 @@ export interface CanvasToolbarProps {
   onReset: () => void;
   onSave: () => void;
   onLoadTutorial: (tutorialKey: string) => void;
-  activeView: 'builder' | 'canvas' | 'code' | 'preview';
-  onViewChange: (view: 'builder' | 'canvas' | 'code' | 'preview') => void;
+  activeView: 'builder' | 'canvas' | 'code' | 'preview' | 'layout';
+  onViewChange: (view: 'builder' | 'canvas' | 'code' | 'preview' | 'layout') => void;
+  activeDevice?: 'desktop' | 'laptop' | 'tablet' | 'mobile';
+  onDeviceChange?: (device: 'desktop' | 'laptop' | 'tablet' | 'mobile') => void;
   isLeftCollapsed?: boolean;
   onToggleLeftPanel?: () => void;
   isRightCollapsed?: boolean;
@@ -62,6 +69,8 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onLoadTutorial,
   activeView,
   onViewChange,
+  activeDevice = 'desktop',
+  onDeviceChange,
   isLeftCollapsed,
   onToggleLeftPanel,
   isRightCollapsed,
@@ -131,7 +140,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       className="canvas-toolbar"
     >
       {/* Left: View Tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <Tabs
           items={[
             { id: PlaygroundView.BUILDER, label: t('playground.toolbar.visualBuilderTab'), icon: <LayoutGrid size={14} /> },
@@ -153,6 +162,11 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
                 </div>
               ),
             },
+            {
+              id: PlaygroundView.LAYOUT,
+              label: 'Layout & Flex Studio',
+              icon: <Layers size={14} style={{ color: 'var(--accent-primary)' }} />,
+            },
             { id: PlaygroundView.CODE, label: t('playground.toolbar.generatedCodeTab'), icon: <Code2 size={14} /> },
           ]}
           activeId={activeView === PlaygroundView.CANVAS ? PlaygroundView.BUILDER : activeView}
@@ -160,6 +174,56 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
           variant="pills"
           size="sm"
         />
+
+        {/* Responsive Device Viewport Switcher when in Preview or Layout */}
+        {(activeView === 'preview' || activeView === 'layout') && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              padding: '2px',
+              gap: '2px',
+              marginLeft: '4px',
+            }}
+          >
+            {[
+              { id: 'desktop', label: 'Desktop (1440px)', icon: <Monitor size={12} /> },
+              { id: 'laptop', label: 'Laptop (1024px)', icon: <Laptop size={12} /> },
+              { id: 'tablet', label: 'Tablet (768px)', icon: <Tablet size={12} /> },
+              { id: 'mobile', label: 'Mobile (375px)', icon: <Smartphone size={12} /> },
+            ].map((d) => {
+              const isSelected = activeDevice === d.id;
+              return (
+                <Tooltip key={d.id} content={d.label} placement="bottom">
+                  <button
+                    type="button"
+                    onClick={() => onDeviceChange && onDeviceChange(d.id as any)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 7px',
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 600 : 500,
+                      borderRadius: 'var(--radius-sm)',
+                      border: 'none',
+                      backgroundColor: isSelected ? 'var(--accent-primary)' : 'transparent',
+                      color: isSelected ? '#ffffff' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    {d.icon}
+                    <span className="hide-mobile">{d.id.charAt(0).toUpperCase() + d.id.slice(1)}</span>
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+        )}
 
         <div
           className="hide-mobile"
@@ -187,7 +251,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         </div>
       </div>
 
-      {/* Center: History & Zoom */}
+      {/* Center: History & Zoom Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <Tooltip content={t('playground.toolbar.undoTooltip')} shortcut="⌘Z" placement="bottom">
           <Button
@@ -213,20 +277,21 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         <Tooltip content={t('playground.toolbar.zoomOutTooltip')} placement="bottom">
           <Button size="xs" variant="ghost" icon={<ZoomOut size={13} />} onClick={onZoomOut} />
         </Tooltip>
-        <Tooltip content={t('playground.toolbar.zoomResetTooltip')} placement="bottom">
-          <span
-            onClick={onZoomReset}
-            style={{
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              padding: '2px 6px',
-              cursor: 'pointer',
-              color: 'var(--text-muted)',
-            }}
-          >
-            {Math.round(zoom * 100)}%
-          </span>
-        </Tooltip>
+        <span
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
+            minWidth: '42px',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            cursor: 'pointer',
+          }}
+          onClick={onZoomReset}
+          title="Click to reset zoom"
+        >
+          {Math.round(zoom * 100)}%
+        </span>
         <Tooltip content={t('playground.toolbar.zoomInTooltip')} placement="bottom">
           <Button size="xs" variant="ghost" icon={<ZoomIn size={13} />} onClick={onZoomIn} />
         </Tooltip>
@@ -234,11 +299,11 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
       {/* Right: Custom UI Dropdown & Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        {/* UI Component Order Control */}
-        <Tooltip content="Change the vertical order of UI components in Live Preview" placement="bottom">
+        {/* UI Layout & Flex Studio Shortcut Button */}
+        <Tooltip content="Open Layout & Flex Studio to structure rows, columns, and flexbox containers" placement="bottom">
           <button
             type="button"
-            onClick={() => setIsOrderModalOpen(true)}
+            onClick={() => onViewChange('layout')}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -247,16 +312,16 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
               fontSize: 'var(--text-xs)',
               fontWeight: 600,
               borderRadius: 'var(--radius-md)',
-              backgroundColor: isOrderModalOpen ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
-              border: `1px solid ${isOrderModalOpen ? 'var(--accent-primary)' : 'var(--border-default)'}`,
+              backgroundColor: activeView === 'layout' ? 'var(--accent-primary-subtle)' : 'var(--bg-surface-elevated)',
+              border: `1px solid ${activeView === 'layout' ? 'var(--accent-primary)' : 'var(--border-default)'}`,
               color: 'var(--text-primary)',
               cursor: 'pointer',
               boxShadow: 'var(--shadow-sm)',
               transition: 'all var(--transition-fast)',
             }}
           >
-            <ArrowUpDown size={13} style={{ color: 'var(--accent-primary)' }} />
-            <span>UI Order</span>
+            <Layers size={13} style={{ color: 'var(--accent-primary)' }} />
+            <span>Layout Studio</span>
             <span
               style={{
                 fontSize: '10px',

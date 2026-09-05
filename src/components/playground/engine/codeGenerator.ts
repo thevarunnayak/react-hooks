@@ -1,9 +1,12 @@
 import { PlaygroundNode, PlaygroundConnection } from '../../../types/playground';
 
+export type StyleFormat = 'tailwind' | 'scss' | 'inline';
+
 export function generateReactCode(
   nodes: PlaygroundNode[],
   connections: PlaygroundConnection[],
-  appName: string = 'App'
+  appName: string = 'App',
+  styleFormat: StyleFormat = 'tailwind'
 ): string {
   // 1. Identify Hook / Logic nodes
   const hookNodes = nodes.filter((n) => n.type === 'logic');
@@ -134,7 +137,20 @@ export function generateReactCode(
       }
     });
 
-  // Build JSX tree
+  const getTargetHook = (nodeId: string) => {
+    const conn = connections.find(
+      (c) =>
+        (c.sourceNodeId === nodeId && (c.type === 'event' || c.type === 'data')) ||
+        (c.targetNodeId === nodeId && (c.type === 'event' || c.type === 'data'))
+    );
+    if (conn) {
+      const targetHookId = conn.sourceNodeId === nodeId ? conn.targetNodeId : conn.sourceNodeId;
+      return hookNodes.find((h) => h.id === targetHookId && h.subtype === 'useState');
+    }
+    return hookNodes.find((h) => h.subtype === 'useState');
+  };
+
+  // Build JSX tree for individual UI node
   const buildUIJSX = (node: PlaygroundNode, indent: string = '    '): string => {
     const eventHandler = eventMap.get(node.id);
     const content = node.props.content || '';
@@ -142,22 +158,8 @@ export function generateReactCode(
     // Interpolate state variables: {{count}} -> {count}
     const formattedContent = content.replace(/\{\{(\w+)\}\}/g, '{$1}');
 
-    const getTargetHook = (nodeId: string) => {
-      const conn = connections.find(
-        (c) =>
-          (c.sourceNodeId === nodeId && (c.type === 'event' || c.type === 'data')) ||
-          (c.targetNodeId === nodeId && (c.type === 'event' || c.type === 'data'))
-      );
-      if (conn) {
-        const targetHookId = conn.sourceNodeId === nodeId ? conn.targetNodeId : conn.sourceNodeId;
-        return hookNodes.find((h) => h.id === targetHookId && h.subtype === 'useState');
-      }
-      return hookNodes.find((h) => h.subtype === 'useState');
-    };
-
     if (node.subtype === 'Button') {
       const clickProp = eventHandler ? ` onClick={${eventHandler}}` : '';
-      const variantClass = node.props.variant ? ` className="btn-${node.props.variant}"` : '';
       let btnBody = formattedContent || 'Button';
       if (node.props.actionType === 'toggle') {
         const boundHook = getTargetHook(node.id);
@@ -165,23 +167,45 @@ export function generateReactCode(
           btnBody = `{isRunning ? 'Pause' : 'Start'}`;
         }
       }
-      return `${indent}<button${variantClass}${clickProp}>\n${indent}  ${btnBody}\n${indent}</button>`;
+
+      if (styleFormat === 'tailwind') {
+        const isSecondary = node.props.variant === 'secondary' || node.props.variant === 'outline';
+        const colorClass = isSecondary
+          ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+          : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm';
+        return `${indent}<button className="px-4 py-2 ${colorClass} active:scale-95 font-medium rounded-lg transition-all flex items-center justify-center gap-2 text-sm"${clickProp}>\n${indent}  ${btnBody}\n${indent}</button>`;
+      } else if (styleFormat === 'scss') {
+        return `${indent}<button className={styles.button}${clickProp}>\n${indent}  ${btnBody}\n${indent}</button>`;
+      } else {
+        const variantClass = node.props.variant ? ` className="btn-${node.props.variant}"` : '';
+        return `${indent}<button${variantClass}${clickProp} style={{ padding: '8px 16px', backgroundColor: '#6366f1', color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 500 }}>\n${indent}  ${btnBody}\n${indent}</button>`;
+      }
     }
 
     if (node.subtype === 'Input') {
       const hasTransition = hookNodes.some((h) => h.subtype === 'useTransition');
       const inputType = node.props.inputType || 'text';
       const placeholder = node.props.placeholder || 'Type here...';
+
+      let styleAttr = '';
+      if (styleFormat === 'tailwind') {
+        styleAttr = ' className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"';
+      } else if (styleFormat === 'scss') {
+        styleAttr = ' className={styles.input}';
+      } else {
+        styleAttr = ' style={{ width: "100%", padding: "8px 12px", backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "6px", color: "#f8fafc", fontSize: "14px" }}';
+      }
+
       if (hasTransition) {
-        return `${indent}<input\n${indent}  type="${inputType}"\n${indent}  placeholder="${placeholder}"\n${indent}  value={inputQuery}\n${indent}  onChange={(e) => {\n${indent}    setInputQuery(e.target.value);\n${indent}    startTransition(() => {\n${indent}      setDeferredQuery(e.target.value);\n${indent}    });\n${indent}  }}\n${indent}/>`;
+        return `${indent}<input\n${indent}  type="${inputType}"\n${indent}  placeholder="${placeholder}"\n${indent}  value={inputQuery}\n${indent}  onChange={(e) => {\n${indent}    setInputQuery(e.target.value);\n${indent}    startTransition(() => {\n${indent}      setDeferredQuery(e.target.value);\n${indent}    });\n${indent}  }}${styleAttr}\n${indent}/>`;
       }
       const targetHook = getTargetHook(node.id);
       const stateName = targetHook?.props.stateName || 'text';
       const setterName = targetHook?.props.setterName || `set${stateName.charAt(0).toUpperCase() + stateName.slice(1)}`;
       if (targetHook) {
-        return `${indent}<input\n${indent}  type="${inputType}"\n${indent}  placeholder="${placeholder}"\n${indent}  value={${stateName}}\n${indent}  onChange={(e) => ${setterName}(e.target.value)}\n${indent}/>`;
+        return `${indent}<input\n${indent}  type="${inputType}"\n${indent}  placeholder="${placeholder}"\n${indent}  value={${stateName}}\n${indent}  onChange={(e) => ${setterName}(e.target.value)}${styleAttr}\n${indent}/>`;
       }
-      return `${indent}<input type="${inputType}" placeholder="${placeholder}" />`;
+      return `${indent}<input type="${inputType}" placeholder="${placeholder}"${styleAttr} />`;
     }
 
     if (node.subtype === 'Switch') {
@@ -189,10 +213,12 @@ export function generateReactCode(
       const stateName = targetHook?.props.stateName || 'isOpen';
       const setterName = targetHook?.props.setterName || `set${stateName.charAt(0).toUpperCase() + stateName.slice(1)}`;
       const label = node.props.label || formattedContent || 'Toggle Mode';
+      const classAttr = styleFormat === 'tailwind' ? ' className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-200"' : styleFormat === 'scss' ? ' className={styles.switch}' : ' style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px" }}';
+
       if (targetHook) {
-        return `${indent}<label className="switch">\n${indent}  <span>${label}</span>\n${indent}  <input\n${indent}    type="checkbox"\n${indent}    role="switch"\n${indent}    checked={${stateName}}\n${indent}    onChange={(e) => ${setterName}(e.target.checked)}\n${indent}  />\n${indent}</label>`;
+        return `${indent}<label${classAttr}>\n${indent}  <span>${label}</span>\n${indent}  <input\n${indent}    type="checkbox"\n${indent}    role="switch"\n${indent}    checked={${stateName}}\n${indent}    onChange={(e) => ${setterName}(e.target.checked)}\n${indent}  />\n${indent}</label>`;
       }
-      return `${indent}<label className="switch"><span>${label}</span><input type="checkbox" role="switch" /></label>`;
+      return `${indent}<label${classAttr}><span>${label}</span><input type="checkbox" role="switch" /></label>`;
     }
 
     if (node.subtype === 'Dropdown') {
@@ -216,10 +242,11 @@ export function generateReactCode(
       const max = node.props.max ?? 100;
       const step = node.props.step ?? 1;
       const label = node.props.label || formattedContent || 'Range';
+      const sliderClass = styleFormat === 'tailwind' ? ' className="w-full accent-indigo-500 cursor-pointer"' : styleFormat === 'scss' ? ' className={styles.slider}' : ' style={{ width: "100%", accentColor: "#6366f1", cursor: "pointer" }}';
       if (targetHook) {
-        return `${indent}<div className="slider-control">\n${indent}  <label>${label}: {${stateName}}</label>\n${indent}  <input\n${indent}    type="range"\n${indent}    min={${min}}\n${indent}    max={${max}}\n${indent}    step={${step}}\n${indent}    value={${stateName}}\n${indent}    onChange={(e) => ${setterName}(Number(e.target.value))}\n${indent}  />\n${indent}</div>`;
+        return `${indent}<div className="slider-control">\n${indent}  <label>${label}: {${stateName}}</label>\n${indent}  <input\n${indent}    type="range"\n${indent}    min={${min}}\n${indent}    max={${max}}\n${indent}    step={${step}}\n${indent}    value={${stateName}}\n${indent}    onChange={(e) => ${setterName}(Number(e.target.value))}${sliderClass}\n${indent}  />\n${indent}</div>`;
       }
-      return `${indent}<input type="range" min={${min}} max={${max}} />`;
+      return `${indent}<input type="range" min={${min}} max={${max}}${sliderClass} />`;
     }
 
     if (node.subtype === 'Checkbox') {
@@ -227,10 +254,11 @@ export function generateReactCode(
       const stateName = targetHook?.props.stateName || 'isChecked';
       const setterName = targetHook?.props.setterName || `set${stateName.charAt(0).toUpperCase() + stateName.slice(1)}`;
       const label = node.props.label || formattedContent || 'Checkbox option';
+      const labelClass = styleFormat === 'tailwind' ? ' className="flex items-center gap-2 cursor-pointer text-sm text-slate-200"' : styleFormat === 'scss' ? ' className={styles.checkbox}' : ' style={{ display: "inline-flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "14px" }}';
       if (targetHook) {
-        return `${indent}<label className="checkbox">\n${indent}  <input type="checkbox" checked={${stateName}} onChange={(e) => ${setterName}(e.target.checked)} />\n${indent}  <span>${label}</span>\n${indent}</label>`;
+        return `${indent}<label${labelClass}>\n${indent}  <input type="checkbox" checked={${stateName}} onChange={(e) => ${setterName}(e.target.checked)} />\n${indent}  <span>${label}</span>\n${indent}</label>`;
       }
-      return `${indent}<label className="checkbox"><input type="checkbox" /> <span>${label}</span></label>`;
+      return `${indent}<label${labelClass}><input type="checkbox" /> <span>${label}</span></label>`;
     }
 
     if (node.subtype === 'Form') {
@@ -250,19 +278,44 @@ export function generateReactCode(
     }
 
     if (node.subtype === 'Text') {
-      return `${indent}<p style={{ fontSize: '${node.props.fontSize || 14}px' }}>${formattedContent || 'Text'}</p>`;
+      if (styleFormat === 'tailwind') {
+        return `${indent}<p className="text-sm text-slate-300 leading-relaxed">${formattedContent || 'Text'}</p>`;
+      } else if (styleFormat === 'scss') {
+        return `${indent}<p className={styles.text}>${formattedContent || 'Text'}</p>`;
+      } else {
+        return `${indent}<p style={{ fontSize: '${node.props.fontSize || 14}px', color: '#cbd5e1', lineHeight: 1.5 }}>${formattedContent || 'Text'}</p>`;
+      }
     }
 
     if (node.subtype === 'Heading') {
-      return `${indent}<h2 style={{ fontSize: '20px', fontWeight: 600 }}>${formattedContent || 'Heading'}</h2>`;
+      if (styleFormat === 'tailwind') {
+        return `${indent}<h2 className="text-xl font-bold tracking-tight text-slate-100">${formattedContent || 'Heading'}</h2>`;
+      } else if (styleFormat === 'scss') {
+        return `${indent}<h2 className={styles.heading}>${formattedContent || 'Heading'}</h2>`;
+      } else {
+        return `${indent}<h2 style={{ fontSize: '20px', fontWeight: 600, color: '#f8fafc', margin: 0 }}>${formattedContent || 'Heading'}</h2>`;
+      }
     }
 
     if (node.subtype === 'Badge') {
       const hasTransition = hookNodes.some((h) => h.subtype === 'useTransition');
-      if (hasTransition) {
-        return `${indent}<span className="badge">\n${indent}  {isPending ? 'Filtering 10,000 items in background...' : '10,000 Catalog Items Synchronized'}\n${indent}</span>`;
+      if (styleFormat === 'tailwind') {
+        const badgeClass = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+        if (hasTransition) {
+          return `${indent}<span className="${badgeClass}">\n${indent}  {isPending ? 'Filtering 10,000 items in background...' : '10,000 Catalog Items Synchronized'}\n${indent}</span>`;
+        }
+        return `${indent}<span className="${badgeClass}">${formattedContent || 'Badge'}</span>`;
+      } else if (styleFormat === 'scss') {
+        if (hasTransition) {
+          return `${indent}<span className={styles.badge}>\n${indent}  {isPending ? 'Filtering 10,000 items in background...' : '10,000 Catalog Items Synchronized'}\n${indent}</span>`;
+        }
+        return `${indent}<span className={styles.badge}>${formattedContent || 'Badge'}</span>`;
+      } else {
+        if (hasTransition) {
+          return `${indent}<span className="badge">\n${indent}  {isPending ? 'Filtering 10,000 items in background...' : '10,000 Catalog Items Synchronized'}\n${indent}</span>`;
+        }
+        return `${indent}<span className="badge">${formattedContent || 'Badge'}</span>`;
       }
-      return `${indent}<span className="badge">${formattedContent || 'Badge'}</span>`;
     }
 
     if (node.subtype === 'DummyData') {
@@ -369,35 +422,258 @@ export function generateReactCode(
       }
 
       const childNodes = uiNodes.filter((c) => c.parentId === node.id);
+      const cardClass = styleFormat === 'tailwind'
+        ? 'p-5 bg-slate-800/80 border border-slate-700/80 rounded-xl shadow-md flex flex-col gap-3'
+        : styleFormat === 'scss'
+        ? 'styles.card'
+        : '';
+      const cardStyle = styleFormat === 'inline'
+        ? ' style={{ padding: "20px", backgroundColor: "#131b2e", border: "1px solid #334155", borderRadius: "12px", display: "flex", flexDirection: "column", gap: "12px" }}'
+        : '';
+
       if (childNodes.length > 0) {
         const childrenJSX = childNodes.map((c) => buildUIJSX(c, indent + '  ')).join('\n');
-        return `${indent}<div className="card">\n${indent}  <div className="card-header"><h4>${title}</h4></div>\n${childrenJSX}\n${indent}</div>`;
+        if (styleFormat === 'tailwind') {
+          return `${indent}<div className="${cardClass}">\n${indent}  <div className="font-semibold text-slate-200 text-base"><h4>${title}</h4></div>\n${childrenJSX}\n${indent}</div>`;
+        } else if (styleFormat === 'scss') {
+          return `${indent}<div className={${cardClass}}>\n${indent}  <div className={styles.cardHeader}><h4>${title}</h4></div>\n${childrenJSX}\n${indent}</div>`;
+        } else {
+          return `${indent}<div className="card"${cardStyle}>\n${indent}  <div className="card-header"><h4>${title}</h4></div>\n${childrenJSX}\n${indent}</div>`;
+        }
       }
-      return `${indent}<div className="card">\n${indent}  <h4>${title}</h4>\n${indent}  <p>${formattedContent || 'Card Content'}</p>\n${indent}</div>`;
+
+      if (styleFormat === 'tailwind') {
+        return `${indent}<div className="${cardClass}">\n${indent}  <h4 className="font-semibold text-slate-100">${title}</h4>\n${indent}  <p className="text-sm text-slate-300">${formattedContent || 'Card Content'}</p>\n${indent}</div>`;
+      } else if (styleFormat === 'scss') {
+        return `${indent}<div className={${cardClass}}>\n${indent}  <h4>${title}</h4>\n${indent}  <p>${formattedContent || 'Card Content'}</p>\n${indent}</div>`;
+      } else {
+        return `${indent}<div className="card"${cardStyle}>\n${indent}  <h4>${title}</h4>\n${indent}  <p>${formattedContent || 'Card Content'}</p>\n${indent}</div>`;
+      }
     }
 
     if (node.subtype === 'Kanban') {
       return `${indent}{/* Interactive Drag-and-Drop Task Kanban Board */}\n${indent}<KanbanBoard\n${indent}  tasks={tasks}\n${indent}  onTaskMove={(taskId, targetCol) => dispatch({ type: 'MOVE_TASK', taskId, targetCol })}\n${indent}/>`;
     }
-
     return `${indent}<div>${formattedContent}</div>`;
   };
 
   // Find root UI nodes (those without parentId or whose parent is not in uiNodes)
   const rootNodes = uiNodes.filter((n) => !n.parentId || !uiNodes.some((p) => p.id === n.parentId));
 
+  // Helper to generate JSX for a container group and its nested containers recursively
+  const generateGroupJSX = (group: string, indent: string = '    '): string => {
+    const groupNodes = uiNodes.filter((n) => n.props?.layoutGroup === group);
+    const realGroupNodes = groupNodes.filter((n) => !n.props?.isContainerHolder);
+    const firstNode = groupNodes[0];
+    const isRow = (firstNode?.props?.containerDirection || 'row') === 'row';
+    const isGrid = firstNode?.props?.containerDisplay === 'grid';
+    const justify = firstNode?.props?.containerJustify || 'flex-start';
+    const align = firstNode?.props?.containerAlign || 'center';
+    const gap = firstNode?.props?.containerGap || '12px';
+    const wrap = firstNode?.props?.containerWrap || 'wrap';
+    const groupTitle = firstNode?.props?.layoutGroupName || `Flex ${isRow ? 'Row' : 'Column'}`;
+    const isCard = firstNode?.props?.containerType === 'card';
+
+    // Find any nested container groups inside this container
+    const nestedGroupIds: string[] = [];
+    uiNodes.forEach((n) => {
+      const lg = n.props?.layoutGroup;
+      if (lg && lg !== group && n.props?.parentGroup === group && !nestedGroupIds.includes(lg)) {
+        nestedGroupIds.push(lg);
+      }
+    });
+
+    const innerIndent = indent + '  ';
+
+    // Generate ordered children (nested containers and direct leaf nodes according to document sequence)
+    type OrderedChild = { index: number; jsx: string };
+    const orderedChildren: OrderedChild[] = [];
+
+    for (const nestedGroupId of nestedGroupIds) {
+      const firstNestedNodeIndex = uiNodes.findIndex((n) => n.props?.layoutGroup === nestedGroupId);
+      orderedChildren.push({
+        index: firstNestedNodeIndex >= 0 ? firstNestedNodeIndex : 9999,
+        jsx: generateGroupJSX(nestedGroupId, innerIndent),
+      });
+    }
+
+    for (const child of realGroupNodes) {
+      const childWidth = child.props?.flexWidth;
+      const childInner = buildUIJSX(child, innerIndent);
+      let leafJSX = '';
+      if (styleFormat === 'tailwind') {
+        const widthClass =
+          childWidth === 'flex-1' || !childWidth
+            ? 'flex-1 min-w-0 w-full'
+            : childWidth === 'full'
+            ? 'w-full'
+            : childWidth === '1/2'
+            ? 'w-full md:w-[calc(50%-8px)]'
+            : childWidth === '1/3'
+            ? 'w-full md:w-[calc(33.333%-8px)]'
+            : childWidth === '1/4'
+            ? 'w-full md:w-[calc(25%-8px)]'
+            : isRow
+            ? 'w-auto'
+            : 'w-full';
+        leafJSX = `${innerIndent}<div className="${widthClass} flex flex-col">\n${childInner}\n${innerIndent}</div>`;
+      } else if (styleFormat === 'scss') {
+        const flexClass =
+          childWidth === 'flex-1' || !childWidth
+            ? 'styles.flex1'
+            : childWidth === 'full'
+            ? 'styles.wFull'
+            : 'styles.flexAuto';
+        leafJSX = `${innerIndent}<div className={${flexClass}}>\n${childInner}\n${innerIndent}</div>`;
+      } else {
+        const styleItems: string[] = [];
+        if (childWidth === 'flex-1' || !childWidth) {
+          styleItems.push("flex: '1 1 0%'", 'minWidth: 0', "width: '100%'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth === 'full' || childWidth === '100%') {
+          styleItems.push("width: '100%'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth === '1/2' || childWidth === '50%') {
+          styleItems.push("width: 'calc(50% - 6px)'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth === '1/3' || childWidth === '33.3%') {
+          styleItems.push("width: 'calc(33.333% - 8px)'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth === '1/4' || childWidth === '25%') {
+          styleItems.push("width: 'calc(25% - 8px)'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth === 'auto') {
+          styleItems.push("width: 'auto'", "display: 'flex'", "flexDirection: 'column'");
+        } else if (childWidth) {
+          styleItems.push(`width: '${childWidth}'`, "display: 'flex'", "flexDirection: 'column'");
+        } else if (!isRow) {
+          styleItems.push("width: '100%'", "display: 'flex'", "flexDirection: 'column'");
+        }
+        const styleAttr = styleItems.length > 0 ? ` style={{ ${styleItems.join(', ')} }}` : '';
+        leafJSX = `${innerIndent}<div${styleAttr}>\n${childInner}\n${innerIndent}</div>`;
+      }
+
+      const nodeIndex = uiNodes.findIndex((n) => n.id === child.id);
+      orderedChildren.push({
+        index: nodeIndex >= 0 ? nodeIndex : 9999,
+        jsx: leafJSX,
+      });
+    }
+
+    orderedChildren.sort((a, b) => a.index - b.index);
+    const childrenJSX = orderedChildren.length === 0
+      ? `${innerIndent}{/* Empty Container */}`
+      : orderedChildren.map((c) => c.jsx).join('\n');
+
+    if (styleFormat === 'tailwind') {
+      const tailwindJustify =
+        justify === 'center'
+          ? 'justify-center'
+          : justify === 'space-between'
+          ? 'justify-between'
+          : justify === 'space-around'
+          ? 'justify-around'
+          : justify === 'space-evenly'
+          ? 'justify-evenly'
+          : justify === 'flex-end'
+          ? 'justify-end'
+          : 'justify-start';
+      const tailwindAlign =
+        align === 'center'
+          ? 'items-center'
+          : align === 'flex-start'
+          ? 'items-start'
+          : align === 'flex-end'
+          ? 'items-end'
+          : 'items-stretch';
+      const tailwindGap =
+        gap === '4px'
+          ? 'gap-1'
+          : gap === '8px'
+          ? 'gap-2'
+          : gap === '16px'
+          ? 'gap-4'
+          : gap === '24px'
+          ? 'gap-6'
+          : gap === '32px'
+          ? 'gap-8'
+          : 'gap-3';
+      const tailwindWrap = wrap === 'nowrap' ? 'flex-nowrap' : 'flex-wrap';
+
+      if (isGrid) {
+        return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">\n${childrenJSX}\n${indent}</div>`;
+      } else if (isCard) {
+        return `${indent}{/* Card Container: ${groupTitle} */}\n${indent}<div className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">\n${childrenJSX}\n${indent}</div>`;
+      } else {
+        return `${indent}{/* Div Wrapper: ${groupTitle} */}\n${indent}<div className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full">\n${childrenJSX}\n${indent}</div>`;
+      }
+    } else if (styleFormat === 'scss') {
+      const groupClass = isGrid
+        ? 'styles.gridContainer'
+        : isCard
+        ? isRow
+          ? 'styles.cardRow'
+          : 'styles.cardCol'
+        : isRow
+        ? 'styles.flexRow'
+        : 'styles.flexCol';
+      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div className={${groupClass}}>\n${childrenJSX}\n${indent}</div>`;
+    } else {
+      const styleProps = [
+        `display: '${isGrid ? 'grid' : 'flex'}'`,
+        isGrid
+          ? `gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'`
+          : `flexDirection: '${isRow ? 'row' : 'column'}'`,
+        `justifyContent: '${justify}'`,
+        `alignItems: '${align}'`,
+        `flexWrap: '${wrap}'`,
+        `gap: '${gap}'`,
+        `width: '100%'`,
+      ];
+      if (isCard) {
+        styleProps.push(
+          `padding: '20px'`,
+          `borderRadius: '12px'`,
+          `backgroundColor: '#ffffff'`,
+          `border: '1px solid #e2e8f0'`,
+          `boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'`
+        );
+      }
+      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div style={{ ${styleProps.join(', ')} }}>\n${childrenJSX}\n${indent}</div>`;
+    }
+  };
+
+  // Render root nodes respecting flexbox layoutGroup rows/containers
+  const renderedGroups = new Set<string>();
+  const renderedBlocks: string[] = [];
+
+  rootNodes.forEach((node) => {
+    // Nested containers are emitted inside their parent containers
+    if (node.props?.parentGroup) return;
+    if (node.props?.isContainerHolder && !node.props?.layoutGroup) return;
+    const group = node.props?.layoutGroup;
+    if (group) {
+      if (!renderedGroups.has(group)) {
+        renderedGroups.add(group);
+        renderedBlocks.push(generateGroupJSX(group, '    '));
+      }
+    } else {
+      if (!node.props?.isContainerHolder) {
+        renderedBlocks.push(buildUIJSX(node, '    '));
+      }
+    }
+  });
+
   let uiJSX = '';
-  if (rootNodes.length === 0) {
+  if (renderedBlocks.length === 0) {
     uiJSX = '    <div>Add UI components in the builder to generate your interface</div>';
-  } else if (rootNodes.length === 1) {
-    uiJSX = buildUIJSX(rootNodes[0], '    ');
   } else {
-    uiJSX = `    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>\n${rootNodes
-      .map((r) => buildUIJSX(r, '      '))
-      .join('\n')}\n    </div>`;
+    if (styleFormat === 'tailwind') {
+      uiJSX = `    <main className="min-h-screen bg-slate-950 text-slate-100 p-6 flex flex-col gap-6 max-w-5xl mx-auto">\n${renderedBlocks.join('\n')}\n    </main>`;
+    } else if (styleFormat === 'scss') {
+      uiJSX = `    <main className={styles.appContainer}>\n${renderedBlocks.join('\n')}\n    </main>`;
+    } else {
+      uiJSX = `    <main style={{ minHeight: '100vh', backgroundColor: '#0b0f19', color: '#f8fafc', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1024px', margin: '0 auto', fontFamily: 'system-ui, -apple-system, sans-serif' }}>\n${renderedBlocks.join('\n')}\n    </main>`;
+    }
   }
 
   const importList = reactHooksUsed.size > 0 ? `, { ${Array.from(reactHooksUsed).join(', ')} }` : '';
+  const scssImport = styleFormat === 'scss' ? `import styles from './${appName}.module.scss';\n` : '';
   const contextDef = reactHooksUsed.has('createContext')
     ? `\n// Theme Context Definition\nexport const ThemeContext = createContext({\n  theme: 'dark',\n  toggleTheme: () => {},\n});\n`
     : '';
@@ -411,13 +687,227 @@ export function generateReactCode(
     : '';
 
   return `import React${importList} from 'react';
-${contextDef}${reducerDef}${storeDef}
+${scssImport}${contextDef}${reducerDef}${storeDef}
 export function ${appName}() {
 ${hookDeclarations.join('\n\n')}
 
   return (
 ${uiJSX}
   );
+}
+`;
+}
+
+/**
+ * Generates companion SCSS Module code (e.g. App.module.scss)
+ */
+export function generateScssCode(nodes: PlaygroundNode[], appName: string = 'App'): string {
+  return `/* ${appName}.module.scss - Generated by Antigravity React Hooks Playground */
+
+// Design Tokens & Colors
+$bg-primary: #0b0f19;
+$bg-surface: #131b2e;
+$bg-surface-elevated: #1e293b;
+$border-color: #334155;
+$accent-primary: #6366f1;
+$accent-hover: #4f46e5;
+$text-primary: #f8fafc;
+$text-secondary: #94a3b8;
+$radius-md: 8px;
+$radius-lg: 12px;
+
+.appContainer {
+  min-height: 100vh;
+  background-color: $bg-primary;
+  color: $text-primary;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1024px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+// Flexbox & Grid Container Layouts (Pure Unstyled Wrappers by Default)
+.flexRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.flexCol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+// Styled Card Containers (White / Surface Background)
+.cardRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.cardCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.gridContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+// Child Sizing Modifiers (Auto-fill equal space)
+.flex1 {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.wFull {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.flexAuto {
+  width: auto;
+}
+
+// Interactive Components
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  background-color: $accent-primary;
+  color: #fff;
+  border: none;
+  border-radius: $radius-md;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+
+  &:hover {
+    background-color: $accent-hover;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  background-color: rgba($bg-surface-elevated, 0.8);
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  color: $text-primary;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 150ms ease;
+
+  &:focus {
+    border-color: $accent-primary;
+    box-shadow: 0 0 0 2px rgba($accent-primary, 0.25);
+  }
+}
+
+.switch, .checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: $text-primary;
+}
+
+.slider {
+  width: 100%;
+  accent-color: $accent-primary;
+  cursor: pointer;
+}
+
+.card {
+  padding: 20px;
+  background-color: $bg-surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+
+  .cardHeader {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.heading {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $text-primary;
+  margin: 0;
+}
+
+.text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: $text-secondary;
+  margin: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: rgba($accent-primary, 0.15);
+  color: lighten($accent-primary, 15%);
+  border: 1px solid rgba($accent-primary, 0.3);
 }
 `;
 }

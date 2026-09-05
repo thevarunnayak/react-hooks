@@ -64,7 +64,15 @@ export enum PlaygroundView {
   BUILDER = 'builder',
   CANVAS = 'canvas',
   PREVIEW = 'preview',
+  LAYOUT = 'layout',
   CODE = 'code',
+}
+
+export enum DeviceViewport {
+  DESKTOP = 'desktop',
+  LAPTOP = 'laptop',
+  TABLET = 'tablet',
+  MOBILE = 'mobile',
 }
 
 export enum PortType {

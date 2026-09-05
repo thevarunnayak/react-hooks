@@ -4,9 +4,27 @@ export {
   LogicSubtype as LogicSubtypeEnum,
   ConnectionType as ConnectionTypeEnum,
   PlaygroundView as PlaygroundViewEnum,
+  DeviceViewport as DeviceViewportEnum,
   PortType as PortTypeEnum,
   PortCategory as PortCategoryEnum,
 } from '../constants/enums';
+
+export type DeviceViewportType = 'desktop' | 'laptop' | 'tablet' | 'mobile';
+
+export interface FlexContainerConfig {
+  id: string;
+  name?: string;
+  display?: 'flex' | 'grid' | 'block';
+  flexDirection?: 'row' | 'column' | 'row-reverse' | 'column-reverse';
+  justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly';
+  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
+  flexWrap?: 'nowrap' | 'wrap' | 'wrap-reverse';
+  gap?: string; // '0px' | '4px' | '8px' | '12px' | '16px' | '24px' | '32px'
+  padding?: string;
+  borderRadius?: string;
+  border?: boolean;
+  backgroundColor?: string;
+}
 
 export type NodeType = 'ui' | 'logic';
 

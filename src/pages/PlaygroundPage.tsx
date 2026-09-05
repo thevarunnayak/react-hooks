@@ -8,14 +8,16 @@ import {
   LogicSubtype,
   TraceStep,
   NodePort,
+  DeviceViewportType,
 } from '../types/playground';
 import { VisualCanvas } from '../components/playground/canvas/VisualCanvas';
 import { CanvasToolbar } from '../components/playground/canvas/CanvasToolbar';
 import { ComponentPalette } from '../components/playground/panels/ComponentPalette';
 import { Inspector } from '../components/playground/panels/Inspector';
 import { LivePreviewPanel } from '../components/playground/panels/LivePreviewPanel';
+import { LayoutStudioPanel } from '../components/playground/panels/LayoutStudioPanel';
 import { CodePanel } from '../components/playground/panels/CodePanel';
-import { generateReactCode } from '../components/playground/engine/codeGenerator';
+import { generateReactCode, generateScssCode } from '../components/playground/engine/codeGenerator';
 import { TUTORIAL_PROJECTS } from '../components/playground/tutorials/tutorialConfigs';
 import { DUMMY_DATA_PRESETS } from '../constants/dummyDataPresets';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
@@ -28,7 +30,7 @@ import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 
 export interface PlaygroundPageProps {
   initialTutorialId?: string;
-  initialView?: 'builder' | 'canvas' | 'code' | 'preview';
+  initialView?: 'builder' | 'canvas' | 'code' | 'preview' | 'layout';
 }
 
 // Add Node from Palette - static port generator
@@ -182,7 +184,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
   const [connections, setConnections] = useState<PlaygroundConnection[]>(initialProject.connections);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-btn-1');
   const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview'>(initialView);
+  const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview' | 'layout'>(initialView);
+  const [activeDevice, setActiveDevice] = useState<DeviceViewportType>('desktop');
   const [zoom, setZoom] = useState<number>(0.8);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState<boolean>(false);
@@ -249,6 +252,40 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
       initialProps = { label: 'Remember choices', checked: false };
     } else if (subtype === 'Form') {
       initialProps = { content: 'Feedback Form' };
+    } else if (subtype === 'Container') {
+      const groupId = `group-${Date.now()}`;
+      initialProps = {
+        content: 'Div Wrapper',
+        containerType: 'div',
+        layoutGroup: groupId,
+        layoutGroupName: 'Div Row (Empty)',
+        containerBorder: false,
+        containerPadding: '0px',
+        containerBg: 'transparent',
+        containerDirection: 'row',
+        containerJustify: 'flex-start',
+        containerAlign: 'center',
+        containerWrap: 'wrap',
+        containerGap: '12px',
+        isContainerHolder: true,
+      };
+    } else if (subtype === 'Card') {
+      const groupId = `group-${Date.now()}`;
+      initialProps = {
+        content: 'Card Container',
+        containerType: 'card',
+        layoutGroup: groupId,
+        layoutGroupName: 'Card Row (Empty)',
+        containerBorder: true,
+        containerPadding: '16px',
+        containerBg: 'card',
+        containerDirection: 'row',
+        containerJustify: 'flex-start',
+        containerAlign: 'center',
+        containerWrap: 'wrap',
+        containerGap: '12px',
+        isContainerHolder: true,
+      };
     } else if (subtype === 'DummyData') {
       const defaultPreset = DUMMY_DATA_PRESETS.products;
       initialProps = {
@@ -536,28 +573,33 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
   // Reorder UI nodes sequence for Live Preview and code generation
   const handleReorderUINodes = useCallback(
     (newOrderedUiNodeIds: string[]) => {
-      const uiNodesMap = new Map(nodes.filter((n) => n.type === 'ui').map((n) => [n.id, n]));
-      const nonUiNodes = nodes.filter((n) => n.type !== 'ui');
+      setNodes((currentNodes) => {
+        const uiNodesMap = new Map(currentNodes.filter((n) => n.type === 'ui').map((n) => [n.id, n]));
+        const nonUiNodes = currentNodes.filter((n) => n.type !== 'ui');
 
-      const orderedUiNodes: PlaygroundNode[] = [];
-      newOrderedUiNodeIds.forEach((id, index) => {
-        const node = uiNodesMap.get(id);
-        if (node) {
-          orderedUiNodes.push({
-            ...node,
-            props: {
-              ...node.props,
-              uiOrder: index,
-            },
-          });
-          uiNodesMap.delete(id);
-        }
+        const orderedUiNodes: PlaygroundNode[] = [];
+        newOrderedUiNodeIds.forEach((id, index) => {
+          const node = uiNodesMap.get(id);
+          if (node) {
+            orderedUiNodes.push({
+              ...node,
+              props: {
+                ...node.props,
+                uiOrder: index,
+              },
+            });
+            uiNodesMap.delete(id);
+          }
+        });
+        uiNodesMap.forEach((node) => orderedUiNodes.push(node));
+
+        const updated = [...orderedUiNodes, ...nonUiNodes];
+        setHistory((prev) => [...prev.slice(-20), { nodes: currentNodes, connections }]);
+        setFuture([]);
+        return updated;
       });
-      uiNodesMap.forEach((node) => orderedUiNodes.push(node));
-
-      pushState([...orderedUiNodes, ...nonUiNodes], connections);
     },
-    [nodes, connections, pushState]
+    [connections]
   );
 
   // Keyboard Shortcuts: Delete/Backspace (Delete Node or Wire), Cmd+D/Ctrl+D (Duplicate Node), Escape (Deselect)
@@ -715,6 +757,115 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
     [nodes, connections, pushState]
   );
 
+  // Wrap nodes into a flex Div container directly from the visual canvas
+  const handleWrapNodesOnCanvas = useCallback(
+    (sourceId: string, targetId: string) => {
+      const sourceNode = nodes.find((n) => n.id === sourceId);
+      const targetNode = nodes.find((n) => n.id === targetId);
+      if (!sourceNode || !targetNode || sourceId === targetId) return;
+
+      const targetGroup = targetNode.props?.layoutGroup;
+      const sourceGroup = sourceNode.props?.layoutGroup;
+
+      // Case 1: Both in different containers -> nest source container into target container
+      if (targetGroup && sourceGroup && targetGroup !== sourceGroup) {
+        const updatedNodes = nodes.map((n) => {
+          if (n.props?.layoutGroup === sourceGroup) {
+            return {
+              ...n,
+              props: {
+                ...n.props,
+                parentGroup: targetGroup,
+              },
+            };
+          }
+          return n;
+        });
+        pushState(updatedNodes, connections);
+        return;
+      }
+
+      // Case 2: Target is in a container -> add source into target container
+      if (targetGroup) {
+        const targetGroupName = targetNode.props?.layoutGroupName || 'Div Wrapper';
+        const targetType = targetNode.props?.containerType || 'div';
+        const targetDir = targetNode.props?.containerDirection || 'row';
+        const updatedNodes = nodes.map((n) => {
+          if (n.id === sourceId) {
+            return {
+              ...n,
+              props: {
+                ...n.props,
+                layoutGroup: targetGroup,
+                layoutGroupName: targetGroupName,
+                containerType: targetType,
+                containerDirection: targetDir,
+                flexWidth: 'flex-1',
+              },
+            };
+          }
+          return n;
+        });
+        pushState(updatedNodes, connections);
+        return;
+      }
+
+      // Case 3: Source is in a container -> add target into source container
+      if (sourceGroup) {
+        const sourceGroupName = sourceNode.props?.layoutGroupName || 'Div Wrapper';
+        const sourceType = sourceNode.props?.containerType || 'div';
+        const sourceDir = sourceNode.props?.containerDirection || 'row';
+        const updatedNodes = nodes.map((n) => {
+          if (n.id === targetId) {
+            return {
+              ...n,
+              props: {
+                ...n.props,
+                layoutGroup: sourceGroup,
+                layoutGroupName: sourceGroupName,
+                containerType: sourceType,
+                containerDirection: sourceDir,
+                flexWidth: 'flex-1',
+              },
+            };
+          }
+          return n;
+        });
+        pushState(updatedNodes, connections);
+        return;
+      }
+
+      // Case 4: Neither in a container -> wrap both into a new Div container!
+      const newGroupId = `group-${Date.now()}`;
+      const groupName = 'Div Row (2 items)';
+      const updatedNodes = nodes.map((n) => {
+        if (n.id === sourceId || n.id === targetId) {
+          return {
+            ...n,
+            props: {
+              ...n.props,
+              layoutGroup: newGroupId,
+              layoutGroupName: groupName,
+              containerType: 'div',
+              containerDisplay: 'flex',
+              containerDirection: 'row',
+              containerJustify: 'flex-start',
+              containerAlign: 'center',
+              containerWrap: 'wrap',
+              containerGap: '12px',
+              containerPadding: '0px',
+              containerBg: 'transparent',
+              flexWidth: 'flex-1',
+            },
+          };
+        }
+        return n;
+      });
+      pushState(updatedNodes, connections);
+    },
+    [nodes, connections, pushState]
+  );
+
   // Load Preset
   const handleLoadTutorial = (tutorialKey: string) => {
     const project = TUTORIAL_PROJECTS[tutorialKey];
@@ -765,7 +916,10 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
   };
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null;
-  const generatedCode = generateReactCode(nodes, connections, 'App');
+  const tailwindCode = generateReactCode(nodes, connections, 'App', 'tailwind');
+  const scssCode = generateReactCode(nodes, connections, 'App', 'scss');
+  const scssFileCode = generateScssCode(nodes, 'App');
+  const inlineCode = generateReactCode(nodes, connections, 'App', 'inline');
 
   return (
     <div
@@ -792,6 +946,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
         onLoadTutorial={handleLoadTutorial}
         activeView={activeView}
         onViewChange={setActiveView}
+        activeDevice={activeDevice}
+        onDeviceChange={setActiveDevice}
         isLeftCollapsed={isLeftCollapsed}
         onToggleLeftPanel={() => setIsLeftCollapsed(!isLeftCollapsed)}
         isRightCollapsed={isRightCollapsed}
@@ -832,6 +988,8 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
                 onDeleteNode={handleDeleteNode}
                 onDeleteConnection={handleDeleteConnection}
                 onUpdateProps={handleUpdateProps}
+                onWrapNodes={handleWrapNodesOnCanvas}
+                onSwitchToLayout={() => setActiveView('layout')}
               />
             </div>
 
@@ -854,6 +1012,18 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
               />
             </div>
           </>
+        ) : activeView === 'layout' ? (
+          <div style={{ flex: 1, height: '100%' }}>
+            <ErrorBoundary fallbackTitle="Layout & Flex Studio">
+              <LayoutStudioPanel
+                nodes={nodes}
+                onUpdateNodes={setNodes}
+                onReorderUINodes={handleReorderUINodes}
+                onUpdateProps={handleUpdateProps}
+                activeDevice={activeDevice}
+              />
+            </ErrorBoundary>
+          </div>
         ) : activeView === 'preview' ? (
           <div style={{ flex: 1, height: '100%' }}>
             <ErrorBoundary fallbackTitle="Live Component Preview">
@@ -861,12 +1031,20 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
                 nodes={nodes}
                 connections={connections}
                 onTraceAction={handleTraceAction}
+                activeDevice={activeDevice}
               />
             </ErrorBoundary>
           </div>
         ) : (
           <div style={{ flex: 1, height: '100%' }}>
-            <CodePanel code={generatedCode} />
+            <CodePanel
+              code={tailwindCode}
+              tailwindCode={tailwindCode}
+              scssCode={scssCode}
+              scssFileCode={scssFileCode}
+              inlineCode={inlineCode}
+              appName="App"
+            />
           </div>
         )}
       </div>

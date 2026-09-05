@@ -491,6 +491,9 @@ export const UIOrderModal: React.FC<UIOrderModalProps> = ({
                     transform: isDragOver ? 'scale(1.015)' : 'none',
                     opacity: isDragged ? 0.35 : 1,
                     cursor: isDragged ? 'grabbing' : 'grab',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    ...({ WebkitUserDrag: 'element' } as any),
                     gap: '10px',
                     transition: 'all var(--transition-fast)',
                   }}
