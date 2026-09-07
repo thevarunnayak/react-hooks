@@ -8,15 +8,54 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: "Explain React's rendering model from a state update to DOM commit.",
     difficulty: 'Senior',
     shortAnswer: "A state update schedules work on the component's Fiber. React enters the render phase (calling component functions, computing JSX, diffing against previous Fibers), followed by the commit phase (synchronously applying DOM mutations, running layout effects, and scheduling passive effects).",
+    mentalModel: `[Trigger: setState] ──► [Lane Scheduled on FiberRoot]
+                            │
+                            ▼
+      [Render Phase: Pure & Interruptible Computation]
+      ┌─────────────────────────────────────────────────┐
+      │ WorkInProgress Tree (beginWork / completeWork)  │
+      │ • Call component function, evaluate hooks       │
+      │ • Reconcile new JSX against current Fiber       │
+      │ • Tag Fibers with flags (Placement, Update, etc)│
+      └─────────────────────────────────────────────────┘
+                            │
+                            ▼
+     [Commit Phase: Synchronous Host DOM Modifications]
+      ┌─────────────────────────────────────────────────┐
+      │ 1. Before Mutation: Read getSnapshotBeforeUpdate│
+      │ 2. Mutation Phase: Synchronously mutate DOM     │
+      │ 3. Layout Phase: Fire useLayoutEffect / ref sync│
+      └─────────────────────────────────────────────────┘
+                            │
+                            ▼
+       [Browser Paint] ──► [Passive Phase: useEffect async]`,
     deepDive: "The lifecycle proceeds in three distinct phases: 1) Trigger/Schedule: setState schedules a lane on the Fiber root. 2) Render phase (pure & interruptible): React traverses the work-in-progress Fiber tree using beginWork/completeWork, evaluating JSX elements and computing the effect list without touching the actual DOM. 3) Commit phase (synchronous & un-interruptible): React applies DOM insertions, updates, and deletions in the mutation sub-phase, fires useLayoutEffect synchronously, allows the browser to paint, and asynchronously flushes passive effects (useEffect).",
+    stepByStep: [
+      "Trigger: An event handler or effect calls a state setter (e.g., setState). React allocates an Update object, appends it to the Fiber's updateQueue, and marks the Fiber with a prioritized Lane.",
+      "Schedule: ensureRootIsScheduled notifies the React scheduler to queue a microtask (Sync lane) or MessageChannel task (Concurrent lane) on the browser event loop.",
+      "Render (beginWork): React descends from the FiberRoot down through the tree, invoking component functions, running hook reducers, and reconciling returned JSX children against existing current Fibers.",
+      "Render (completeWork): React bubbles back up, allocating DOM instances for new nodes, setting initial properties, and aggregating subtree effect flags (SubtreeFlags).",
+      "Commit (Mutation): React enters the synchronous commitRoot pass, swapping the current tree pointer with workInProgress (double-buffering) and executing physical DOM mutations.",
+      "Commit (Layout): React synchronously executes useLayoutEffect cleanup and setup functions and resolves mutable refs.",
+      "Browser Paint: The main thread yields to the browser engine to perform style recalculation, layout reflow, and pixel rasterization.",
+      "Passive Effects: React asynchronously fires useEffect cleanups and setups via a scheduled task after paint without blocking user responsiveness.",
+    ],
+    practicalExample: "In a high-throughput financial trading ticker, rapid price updates trigger state setters at 60fps. React groups these updates into Sync or Transition lanes. While low-priority background chart recomputations occur in an interruptible render pass, high-priority order-entry clicks immediately preempt background rendering, keeping the user interface snappy and responsive.",
     commonPitfalls: [
       'Confusing rendering with DOM painting; rendering is simply calculating the new UI description in memory.',
       'Assuming state updates immediately re-run the component on the next line of JavaScript.',
+    ],
+    misconceptions: [
+      "Believing that calling setState immediately invokes the component function on the next line of JavaScript.",
+      "Assuming useEffect runs before the user sees the screen update. Only useLayoutEffect runs before browser paint.",
+      "Thinking React elements returned by JSX are actual DOM elements rather than lightweight, immutable descriptor objects.",
     ],
     followUp: {
       question: 'What happens if a state setter is invoked synchronously during the render phase of another component?',
       answer: 'React throws the error: "Cannot update a component while rendering a different component". State updates can only be queued during render for the same component (which triggers an immediate re-render loop check) or inside effects/event handlers.',
     },
+    interviewInsight: "Top candidates stand out by dividing their answer explicitly into the three formal phases: Trigger, Render, and Commit. Emphasize that the Render phase is pure calculation in memory, whereas the Commit phase is host-bound and synchronous. Mentioning the distinction between layout effects (synchronous pre-paint) and passive effects (asynchronous post-paint) immediately signals senior-level maturity.",
+    relatedConcepts: ['Fiber Architecture', 'Concurrent Lanes', 'useLayoutEffect vs useEffect', 'Double Buffering'],
   },
   {
     id: 'int-2',
@@ -24,11 +63,46 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'What is the difference between rendering and committing in React?',
     difficulty: 'Senior',
     shortAnswer: 'Rendering is the process of invoking component functions to produce React elements and calculating the diff. Committing is the physical application of those calculated changes to the host environment (DOM).',
+    mentalModel: `[Render Phase: Computational & Virtual]
+┌──────────────────────────────────────────────┐
+│ • Evaluates component functions & JSX        │
+│ • Runs purely in memory (JavaScript thread) │
+│ • Can be paused, aborted, or restarted       │
+│ • Zero DOM mutations or browser reflows      │
+└──────────────────────────────────────────────┘
+                       │
+                       ▼  (Only if diff detected)
+[Commit Phase: Physical & Host-Bound]
+┌──────────────────────────────────────────────┐
+│ • Modifies actual HTML DOM elements          │
+│ • Runs synchronously without interruption    │
+│ • Mutates node text, attributes, children    │
+│ • Triggers browser reflow and layout         │
+└──────────────────────────────────────────────┘`,
     deepDive: 'Rendering is completely decoupled from the host platform. It evaluates components, handles hooks, and creates a work-in-progress Fiber tree. In concurrent mode, rendering can be paused, aborted, or restarted without visible side effects. Committing is always synchronous: it attaches/detaches DOM nodes, updates attributes, and invokes layout lifecycle methods. A component can render multiple times without ever committing if higher-priority work supersedes it.',
+    stepByStep: [
+      "Step 1: A render is scheduled by state, parent render, or context change.",
+      "Step 2: React executes the component function, passing current props and resolving hook states.",
+      "Step 3: React compares the returned JSX structure against the prior Fiber representation (reconciliation).",
+      "Step 4: If no differences exist, React bails out early, skipping child re-renders and the commit phase entirely.",
+      "Step 5: If differences exist, React marks the Fiber with mutation flags and hands the workInProgress tree to the commit phase.",
+      "Step 6: In the commit phase, the DOM renderer imperatively invokes node.appendChild, node.removeChild, or element.setAttribute.",
+    ],
+    practicalExample: "Consider a search autocomplete dropdown with React.memo on each list item. When the query changes, the container component renders. For item components whose props have not changed, React executes the memo comparator during the render phase and bails out. As a result, 0 DOM mutations occur in the commit phase for those untouched items, eliminating unnecessary reflows.",
     commonPitfalls: [
       'Assuming that seeing a console.log inside a component body means DOM elements were updated on screen.',
       'Assuming React.memo prevents DOM mutations instead of skipping the render phase computation.',
     ],
+    misconceptions: [
+      "Believing a component render always alters DOM nodes. A component can render 1,000 times without a single DOM node changing if the diff produces identical results.",
+      "Assuming React.memo protects the DOM. React.memo skips the render-phase function call; reconciliation already protects the DOM from redundant writes.",
+    ],
+    followUp: {
+      question: 'Can React render a component without ever committing the result?',
+      answer: 'Yes. In Concurrent React (e.g. useTransition or startTransition), if a high-priority user interaction (like typing in an input) arrives while a low-priority render is executing, React will abandon or discard the low-priority workInProgress tree. The component renders in memory, but zero changes are committed to the DOM.',
+    },
+    interviewInsight: "Highlight that rendering is platform-agnostic (the exact same render engine powers React DOM, React Native, and React Three Fiber), while committing is host-environment specific. Mentioning that N renders can result in 0 commits in Concurrent React will immediately convince the interviewer of your senior grasp.",
+    relatedConcepts: ['Reconciliation', 'Host Config', 'React Native Bridge', 'Concurrent Mode Bailout'],
   },
   {
     id: 'int-3',
@@ -36,10 +110,37 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'Why does React use a virtual representation of the UI?',
     difficulty: 'Senior',
     shortAnswer: 'Virtual UI representations decouple the declarative description of views from imperative host platform operations, allowing cross-platform targeting, diffing, and fine-grained scheduling.',
+    mentalModel: `[Declarative Component Code]
+              │ (returns)
+              ▼
+[Virtual UI Elements (Plain JS Objects)]
+{ type: 'button', props: { className: 'primary', onClick } }
+              │
+              ▼ (Scheduler & Reconciler)
+      ┌───────┴───────┐
+      ▼               ▼
+[Browser DOM]   [React Native Native Views]   [Canvas / WebGL (R3F)]`,
     deepDive: 'The primary architectural advantage of React elements (lightweight plain JS objects describing what should appear) is not raw speed over direct DOM operations, but declarative expressiveness and schedulability. With a virtual representation, React can batch updates, prioritize critical user interactions over background data processing (Concurrent React), run on multiple platforms (React Native, Three.js via Fiber), and minimize expensive layout recalculations.',
+    stepByStep: [
+      "Step 1: Declarative Abstraction: Developers write JSX representing target state at any point in time, without writing imperative manual node creation and removal code.",
+      "Step 2: Tree Diffing in JS Memory: Comparing plain JavaScript objects in heap memory is orders of magnitude cheaper than querying and mutating browser DOM nodes.",
+      "Step 3: Batching & Scheduling: Instead of immediately touching the DOM on every event, React batches multiple virtual changes and applies them in a single coalesced layout pass.",
+      "Step 4: Platform Portability: The virtual element schema is target-neutral, enabling React to render to DOM, iOS UIKit, Android Views, PDF engines, and WebGL canvases.",
+    ],
+    practicalExample: "In a multi-platform design system (e.g. at Airbnb or Meta), business logic and state management are written once using React hooks. The virtual tree output is rendered via react-dom on web and react-native on mobile, saving months of duplicated engineering effort while guaranteeing consistent UI state.",
     commonPitfalls: [
       'Claiming the Virtual DOM is inherently faster than manual DOM manipulation; direct targeted DOM mutation is technically faster, but impossible to manage scalably at application scale.',
     ],
+    misconceptions: [
+      "Thinking the Virtual DOM was created primarily for raw speed. Highly tuned handwritten vanilla JS DOM operations are always faster than VDOM diffing. The VDOM exists for declarative predictability and scheduling control.",
+      "Confusing the Virtual DOM with the Browser's Shadow DOM. Shadow DOM is a browser-native web component encapsulation API; Virtual DOM is a purely JavaScript-level diffing pattern.",
+    ],
+    followUp: {
+      question: 'How does modern compilation (like Svelte or React Compiler) challenge the traditional Virtual DOM approach?',
+      answer: 'Compilers like Svelte analyze reactive dependencies at build time to generate direct, targeted DOM mutation code without a runtime virtual tree diff. Similarly, the React Compiler memoizes hook dependencies and component outputs at build time, reducing runtime reconciliation overhead while preserving React\'s mental model.',
+    },
+    interviewInsight: "Never say 'The Virtual DOM makes React faster than vanilla JS'. Clarify that it provides predictable, declarative scalability: it ensures an application remains consistently fast enough across complex, enterprise-scale codebases without requiring manual imperative DOM micro-management.",
+    relatedConcepts: ['Shadow DOM vs Virtual DOM', 'Declarative UI', 'Cross-Platform Architecture', 'React Compiler'],
   },
   {
     id: 'int-4',
@@ -47,10 +148,38 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'What problem does reconciliation solve?',
     difficulty: 'Senior',
     shortAnswer: 'Reconciliation solves the problem of finding the minimal set of host mutations required to update the screen from one virtual tree state to the next in O(n) heuristic time.',
+    mentalModel: `General Tree Edit Distance (Levenshtein Trees):
+[Tree A: 1000 nodes] ──► O(n³) = 1,000,000,000 operations ──► Complete UI Freeze!
+
+React Heuristic Reconciliation:
+[Tree A: 1000 nodes] ──► O(n)  = 1,000 operations         ──► ~1ms (60 FPS Smooth!)
+
+Heuristic 1: Different Element Types Produce Different Trees
+<div> ──► <section>  (Tear down old subtree, mount fresh subtree)
+
+Heuristic 2: Stable Keys Across Siblings
+[Item A, Item B] ──► [Item B, Item A] (Re-order nodes, do not recreate)`,
     deepDive: 'A general tree-to-tree edit distance algorithm (e.g. Levenshtein tree algorithms) runs in O(n^3) time. For 1,000 nodes, that would take 1 billion comparisons. Reconciliation applies two heuristic assumptions: 1) Two elements of different types will produce different trees. 2) The developer can hint which elements are stable across renders with a key prop. This brings computational complexity down from O(n^3) to O(n).',
+    stepByStep: [
+      "Step 1: React compares the root elements of the two trees.",
+      "Step 2: If element types differ (e.g. <div> to <span> or <Header> to <Nav>), React tears down the entire existing subtree, unmounting components and discarding their DOM nodes.",
+      "Step 3: If element types match, React inspects props, updating only changed attributes (e.g. className or style) and retaining the underlying DOM instance.",
+      "Step 4: React recursively reconciles children. For list items, it compares stable 'key' attributes to determine insertions, deletions, and moves instead of rebuilding the list.",
+    ],
+    practicalExample: "When rendering a virtualized feed of 500 social media cards, inserting a new post at the top without keys forces React to mutate all 500 cards. By assigning each post a unique database ID as its 'key', React reconciles the list in O(n), inserting exactly 1 new DOM node at the top and leaving the other 499 untouched.",
     commonPitfalls: [
       'Failing to articulate why O(n^3) makes naive tree diffing unusable in 60fps applications.',
     ],
+    misconceptions: [
+      "Assuming React performs a comprehensive mathematical graph diff. It is strictly a single-pass heuristic comparison.",
+      "Using array indexes as keys for dynamic lists. When items are sorted, inserted, or filtered, index keys trick reconciliation into mutating wrong component state.",
+    ],
+    followUp: {
+      question: 'Why does changing a component type from <div> to <span> destroy all internal child component state?',
+      answer: 'Because heuristic #1 assumes different types never share internal layout or state structure. React unmounts the old Fiber subtree completely, destroying all hook states, refs, and child DOM nodes, and constructs an entirely fresh Fiber subtree.',
+    },
+    interviewInsight: "Mention the exact big-O complexity: naive tree diffing is O(n^3), which for 1,000 nodes is 10^9 operations (guaranteed frame drops). React's heuristic diff reduces this to O(n). Explicitly naming both heuristics (type comparison and keys) shows true depth.",
+    relatedConcepts: ['Heuristic Diffing', 'Key Prop Mechanics', 'Fiber Subtree Flags', 'Unmounting Lifecycle'],
   },
   {
     id: 'int-5',
@@ -58,11 +187,41 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'How does React determine whether a component needs to re-render?',
     difficulty: 'Senior',
     shortAnswer: 'By default, a component re-renders whenever its state changes, its parent re-renders, or a Context it subscribes to publishes a new reference.',
+    mentalModel: `Does Component Need to Re-Render?
+                  │
+                  ▼
+       [Did Parent Re-render?]
+         ├── NO ──► [Did Own State Change?] ────► YES: Re-render
+         │          └── [Did Context Change?] ──► YES: Re-render
+         │
+         └── YES ─► [Is Component Wrapped in React.memo?]
+                      ├── NO  ──► Re-render (Default React Behavior)
+                      └── YES ──► [Did Props Change? (Shallow Compare)]
+                                    ├── YES ──► Re-render
+                                    └── NO  ──► Bailout (Skip Render!)`,
     deepDive: 'Unless explicitly wrapped in React.memo, React does not check whether a component\'s props have changed. If parent component A re-renders, child component B will re-render regardless of whether B received identical props. React skips re-rendering only if: 1) The component was memoized and shallow prop comparison passes, 2) The element is identical by reference (bailout in beginWork), or 3) Context value reference has not changed.',
+    stepByStep: [
+      "Step 1: Check Fiber lanes: Does this Fiber have pending updates queued in its lane? If yes, execute render.",
+      "Step 2: Check parent render pass: In beginWork, if the parent is rendering, React checks if the child element has the same props reference (Object.is) as the current Fiber.",
+      "Step 3: Check React.memo: If wrapped in memo, shallow-compare each prop in prevProps against nextProps.",
+      "Step 4: Bailout: If props are shallow-equal and no local state or context has changed, React calls bailoutOnAlreadyFinishedWork, cloning child pointers without re-running component code.",
+      "Step 5: Context check: If any consumed React Context provider emitted a new value reference, bypass memoization and force component execution.",
+    ],
+    practicalExample: "In a collaborative document editor, typing in the title bar triggers a state update in the page root. If the canvas component holding 10,000 vector shapes is wrapped in React.memo and its props are stable, React bails out in beginWork in under 0.1ms, maintaining 120 FPS typing latency.",
     commonPitfalls: [
       'Believing React automatically checks props for equality before re-rendering child components.',
       'Overlooking that context updates bypass parent React.memo barriers.',
     ],
+    misconceptions: [
+      "Believing React checks if props changed before re-rendering children by default. In vanilla React, when a parent renders, all its children re-render unconditionally.",
+      "Assuming React.memo protects a component from re-rendering when a consumed Context changes. Context consumption always forces a re-render regardless of memo.",
+    ],
+    followUp: {
+      question: 'How can you prevent a child from re-rendering without using React.memo?',
+      answer: 'By lifting the child element out and passing it as a `children` prop from a stable parent. Because the JSX element instance was created by an outer component that did not re-render, its object reference is identical. React hits the reference-equality bailout in `beginWork` automatically.',
+    },
+    interviewInsight: "Emphasize that parent re-rendering is the #1 cause of child re-renders. A junior candidate often says 'components re-render when their props change'. A senior candidate immediately corrects this: 'Components re-render when their parent renders, regardless of props, unless memoized.'",
+    relatedConcepts: ['React.memo', 'beginWork Bailout', 'Context Propagation', 'Children Prop Optimization'],
   },
   {
     id: 'int-6',
@@ -70,11 +229,41 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'What causes a React component to render?',
     difficulty: 'Senior',
     shortAnswer: 'Four main triggers: 1) State update via useState setter or useReducer dispatch, 2) Parent component re-rendering, 3) Consumed Context value reference changing, and 4) useSyncExternalStore notification.',
+    mentalModel: `[Four Triggers of a React Render]
+┌──────────────────────────────────────────────────────────────┐
+│ 1. Local State: useState / useReducer update queued          │
+│ 2. Parent Cascade: Parent component evaluated in render      │
+│ 3. Context Change: Subscribed Context provider value changed │
+│ 4. External Store: useSyncExternalStore listener fired       │
+└──────────────────────────────────────────────────────────────┘
+                         │
+                         ▼
+        [React Scheduler Queues Microtask]
+                         │
+                         ▼
+             [Component Body Evaluates]`,
     deepDive: 'Props changing does NOT directly trigger a render on its own; rather, the parent component re-rendering creates new JSX element instances (props), which leads to the child re-rendering. Custom hooks trigger renders exclusively through their underlying useState or useReducer instances. Directly mutating a variable or a useRef does not schedule any work and will never trigger a render.',
+    stepByStep: [
+      "1. Internal State Mutation: Calling setState or dispatch queues an update on the component Fiber.",
+      "2. Parent Re-evaluation: The parent executes its render phase, generating new React element descriptors for its children.",
+      "3. Context Value Mutation: React iterates through the list of Fibers subscribed to a Context (dependencies linked list) and marks them for re-render when the Provider's value prop changes.",
+      "4. External Store Subscription: useSyncExternalStore registers an onStoreChange callback that triggers a render when external mutable state (like Redux or Zustand) updates.",
+    ],
+    practicalExample: "In a real-time chat application, incoming WebSocket messages update a global Zustand store. The store invokes the useSyncExternalStore listener, causing only the message list component to render, leaving sidebar, headers, and composer components completely untouched.",
     commonPitfalls: [
       'Listing "props change" as an independent trigger separate from parent re-rendering.',
       'Expecting ref.current mutations to schedule a render.',
     ],
+    misconceptions: [
+      "Believing mutating useRef.current triggers a render. useRef is simply a persistent plain JavaScript object that produces zero scheduling signals.",
+      "Believing custom hooks have their own render lifecycle. Custom hooks run within the calling component's execution context.",
+    ],
+    followUp: {
+      question: 'Why does passing an unchanged state value to setState (e.g. setCount(5) when count is already 5) sometimes still render once?',
+      answer: 'If the Fiber has not yet computed the transition or if it has pending lanes, React may do a fast shallow check (eager state) and bailout before scheduling. However, if work is already scheduled on the Fiber, React may enter the component once, see that the state is equal, and immediately bailout without touching children or DOM.',
+    },
+    interviewInsight: "Be pedantic about props: 'Props changing' is not an autonomous trigger. The trigger is the parent re-rendering. Clarifying this distinction separates engineers who truly understand the component tree execution model from those who rely on high-level heuristics.",
+    relatedConcepts: ['useSyncExternalStore', 'Eager State Bailout', 'useRef Mechanics', 'Context Dependencies'],
   },
   {
     id: 'int-7',
@@ -82,10 +271,36 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'Does a component rendering necessarily mean the DOM changes?',
     difficulty: 'Senior',
     shortAnswer: 'No. Rendering simply calls the component function to produce React elements. If the returned elements diff to the exact same structure and props as the previous render, no DOM mutations occur.',
+    mentalModel: `[Render: JS Computation] ──────► [Reconciliation: In-Memory Diff]
+Component Function Runs                  New JSX vs Previous Fiber
+Total: 100 Renders                       Structure & Props Identical!
+                                                    │
+                                                    ▼
+                                         [Commit Phase: DOM]
+                                         ZERO DOM Changes!
+                                         ZERO Browser Paints!`,
     deepDive: 'This separation between the Render Phase (computation) and Commit Phase (DOM mutations) is fundamental. You can observe a component render 100 times in the React Profiler without a single DOM node being altered or reflowed if the returned JSX evaluates to identical attributes and children. However, excessive re-renders still consume CPU cycles executing JavaScript logic.',
+    stepByStep: [
+      "1. Component function runs and executes JavaScript logic inside its body.",
+      "2. The function returns a React element tree (JSX objects).",
+      "3. React's reconciler diffs the returned React elements against the existing Fiber tree.",
+      "4. If all tag names, attributes, text contents, and child keys are identical, React flags the Fiber with 0 mutation flags.",
+      "5. During commitRoot, React skips this Fiber, leaving the existing browser DOM nodes completely untouched.",
+    ],
+    practicalExample: "In an analytics dashboard, a polling interval triggers every second at the root to check notification counts. Even though subcomponents re-run their render functions every second, if the notification count remains '0', React makes zero mutations to the DOM, avoiding costly browser layout reflows.",
     commonPitfalls: [
       'Assuming that eliminating DOM changes completely solves all rendering performance problems (unnecessary JS execution in render still causes frame drops).',
     ],
+    misconceptions: [
+      "Assuming if the DOM doesn't change, the app has zero performance bottlenecks. Heavy JS computations (filtering arrays, regex parsing) during unnecessary renders can still cause input lag and frame drops.",
+      "Believing React Profiler 'Render' timeline measures browser DOM paint time. It measures JavaScript component execution time.",
+    ],
+    followUp: {
+      question: 'How do you verify whether a render actually resulted in a DOM modification in browser dev tools?',
+      answer: 'In Chrome DevTools, open the Rendering drawer and enable "Paint Flashing" or "Layout Shift Regions". If a component re-renders but the DOM is unchanged, no green paint flash will appear over the element.',
+    },
+    interviewInsight: "Point out that rendering is a CPU cost (JavaScript heap execution), whereas DOM mutation is a GPU/Layout cost (browser reflow, style recalculation, and rasterization). Both matter, but separating them is the cornerstone of React performance engineering.",
+    relatedConcepts: ['Paint Flashing', 'React Profiler', 'Layout Thrashing', 'Pure Components'],
   },
   {
     id: 'int-8',
@@ -93,11 +308,48 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: "Explain the difference between React's render phase and commit phase.",
     difficulty: 'Senior',
     shortAnswer: 'The render phase is computational, asynchronous, and interruptible in concurrent mode. The commit phase is side-effectful, synchronous, and uninterruptible.',
+    mentalModel: `┌───────────────────────────────────────────────────────────┐
+│ RENDER PHASE (Interruptible, Pure, Asynchronous)         │
+│ • Runs beginWork and completeWork                         │
+│ • Evaluates component functions and hooks                 │
+│ • Builds workInProgress Fiber tree                        │
+│ • Can yield to browser thread (5ms time-slicing)         │
+│ • ZERO DOM mutations                                      │
+└───────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────┐
+│ COMMIT PHASE (Uninterruptible, Synchronous, Side-Effectful)│
+│ 1. Before Mutation: getSnapshotBeforeUpdate               │
+│ 2. Mutation: appendChild, removeChild, textContent        │
+│ 3. Layout: useLayoutEffect (synchronous pre-paint)        │
+│ 4. BROWSER PAINT (Pixels rendered to display)            │
+│ 5. Passive Effects: useEffect (asynchronous post-paint)   │
+└───────────────────────────────────────────────────────────┘`,
     deepDive: 'Render Phase: Traverses Fibers, calls component functions, resolves hook values, evaluates reconciliation diffs, and flags nodes that need DOM work. In React 18 Concurrent mode, this phase can yield back to the browser event loop. Commit Phase: Divides into three sub-phases: 1) Before Mutation (getSnapshotBeforeUpdate), 2) Mutation (inserting, removing, updating DOM nodes), and 3) Layout (synchronous execution of useLayoutEffect and componentDidMount/Update). Browser paint occurs after Layout phase, followed by asynchronous passive effects (useEffect).',
+    stepByStep: [
+      "Render Phase: Traverses Fibers down (beginWork) and up (completeWork), computing JSX and effect tags.",
+      "Commit Subphase 1 (Before Mutation): Reads pre-commit snapshots (e.g. scroll positions) before DOM is modified.",
+      "Commit Subphase 2 (Mutation): Synchronously executes DOM deletions, placements, and attribute updates.",
+      "Commit Subphase 3 (Layout): Swaps current fiber pointer, resolves DOM refs, and synchronously invokes useLayoutEffect.",
+      "Browser Paint: Browser updates the display pixels on screen.",
+      "Passive Phase: React executes useEffect cleanup and setup functions asynchronously.",
+    ],
+    practicalExample: "Measuring a tooltip position before paint: When opening a tooltip, you must position it relative to the button without flickering. You read button coordinates and apply tooltip position inside `useLayoutEffect` (Commit Layout phase). The browser paints only once with the correctly calculated coordinates, eliminating visible visual jumping.",
     commonPitfalls: [
       'Believing useLayoutEffect runs after the browser paints the pixels on screen.',
       'Placing network requests or DOM mutations inside the render phase.',
     ],
+    misconceptions: [
+      "Assuming useEffect runs synchronously with DOM changes. useEffect is intentionally deferred until after browser paint to keep interactions responsive.",
+      "Believing you can safely trigger external side effects (like analytics logging or API calls) in the render phase body.",
+    ],
+    followUp: {
+      question: 'What happens if useLayoutEffect calls setState synchronously?',
+      answer: 'React immediately halts and schedules a synchronous render and commit pass before the browser has a chance to paint the current frame. This ensures the user never sees intermediate or unstyled layout state, but running heavy code here directly degrades frame rate.',
+    },
+    interviewInsight: "Always detail the three distinct sub-phases of Commit: Before Mutation, Mutation, and Layout. Mentioning where the browser paint sits (between Layout and Passive useEffect) demonstrates principal-level clarity.",
+    relatedConcepts: ['useLayoutEffect', 'useEffect Scheduling', 'Time Slicing', 'DOM Snapshots'],
   },
   {
     id: 'int-9',
@@ -105,11 +357,40 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'Why must render-phase code be pure?',
     difficulty: 'Architect',
     shortAnswer: 'Because React can call render functions multiple times, discard incomplete work, or run rendering out of order. Impure functions create race conditions, memory leaks, and unpredictable UI bugs.',
+    mentalModel: `[Impure Component: Modifies Global Variable]
+Render 1 (Started) ──► Mutates globalCart.total += 10
+Higher Priority Task Preempts! ──► Render 1 DISCARDED!
+Render 2 (Restarted) ──► Mutates globalCart.total += 10
+Result: Cart total corrupted to +20 instead of +10!
+
+[Pure Component: Input Props/State -> Output JSX]
+Render 1 (Started) ──► Produces JSX descriptor A
+Higher Priority Task Preempts! ──► Discarded safely with ZERO side effects!
+Render 2 (Restarted) ──► Produces JSX descriptor A cleanly`,
     deepDive: 'In Concurrent React, a render phase can be started, paused when higher-priority work (like typing in an input) arrives, and discarded completely. If a render function mutates global variables, attaches event listeners, or initiates network requests, those side effects will duplicate or leave corrupted state behind when renders are aborted or restarted.',
+    stepByStep: [
+      "1. React's scheduler begins rendering a low-priority component tree.",
+      "2. An impure render function executes, mutating an outside object or triggering a network call.",
+      "3. A high-priority user interaction interrupts the render pass.",
+      "4. React abandons the in-progress work and garbage collects the work-in-progress Fiber tree.",
+      "5. Because the render was aborted, no commit phase runs and no cleanup runs.",
+      "6. When React restarts rendering later, the impure code executes again, causing duplicated side effects and corrupted state.",
+    ],
+    practicalExample: "If an analytics logging call `analytics.track('PageView')` is placed in the component body instead of `useEffect`, React Strict Mode in development will log 2 views, and Concurrent React during aborted transitions could log 3 or 4 views for a single visit, corrupting business metrics.",
     commonPitfalls: [
       'Calling Math.random() or Date.now() during render and expecting SSR and client hydration to match.',
       'Pushing items into an external array or modifying object arguments during render.',
     ],
+    misconceptions: [
+      "Thinking React Strict Mode double-rendering is a bug. It is an intentional development tool designed specifically to expose impure render functions.",
+      "Believing side effects in render functions are fine if 'I know it only renders once'. In Concurrent React, there is never a guarantee a component renders once.",
+    ],
+    followUp: {
+      question: 'How does React StrictMode help enforce render phase purity in development?',
+      answer: 'React StrictMode intentionally invokes component functions, useState initializers, and useMemo callbacks twice in development mode. If a function is pure, f(x) produces the exact same result both times with no side effects. If it is impure (e.g. mutating an external array), the bug manifests immediately in development.',
+    },
+    interviewInsight: "Connect purity directly to Concurrent Mode. Explain that purity is what allows React to treat rendering like a git branch: it can fork work, throw it away if abandoned, or rebase it on top of new state without corrupting the application.",
+    relatedConcepts: ['Strict Mode Double Render', 'Idempotence', 'Time Slicing Safety', 'SSR Hydration Mismatch'],
   },
   {
     id: 'int-10',
@@ -117,10 +398,35 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'What would happen if a component caused a side effect during rendering?',
     difficulty: 'Senior',
     shortAnswer: 'It leads to duplicated side effects, memory leaks, tearing in concurrent mode, and hydration mismatches during server rendering.',
+    mentalModel: `Component Body Executes:
+├── PURE: const total = price * quantity; (SAFE)
+└── IMPURE: window.addEventListener('resize', handler); (DANGEROUS!)
+      │
+      ├─► Strict Mode Double Render: Event listener attached TWICE!
+      ├─► Concurrent Discard: Listener attached, but component never mounted!
+      └─► Memory Leak: No cleanup hook exists to detach the listener!`,
     deepDive: 'In React Strict Mode in development, React intentionally renders every component twice to catch impure render-phase code. If a component registers an event listener, fetches data, or increments a global counter during render, Strict Mode causes it to execute twice immediately. In production Concurrent Mode, partial renders discarded due to priority preemption will leave lingering side effects that were never cleaned up.',
+    stepByStep: [
+      "1. A side effect is executed in the component body (e.g. document.title = newTitle).",
+      "2. In SSR, the server renders the component; client-specific APIs (window, document) crash Node.js.",
+      "3. In Strict Mode, the body executes twice, doubling the side effect.",
+      "4. In Concurrent Mode, an aborted render never reaches the commit phase, so no cleanup function runs.",
+      "5. Event listeners or subscriptions remain dangling in memory indefinitely, causing memory leaks.",
+    ],
+    practicalExample: "A junior developer puts `fetch('/api/user')` directly in the component body. During search filtering, the component re-renders on every keystroke, firing 20 un-cancellable HTTP requests in 2 seconds, overloading the backend API and creating UI race conditions.",
     commonPitfalls: [
       'Blaming Strict Mode for "running my code twice" instead of realizing the code contained illegal render-phase side effects.',
     ],
+    misconceptions: [
+      "Assuming side effects are acceptable if they 'only modify the DOM directly'. Direct DOM mutations during render corrupt React's internal Fiber-to-DOM mapping.",
+      "Believing useEffect and render body run at the same time.",
+    ],
+    followUp: {
+      question: 'Where should side effects be placed in a React component?',
+      answer: 'Side effects should live exclusively in: 1) Event handlers (e.g. onClick, onSubmit) for user-initiated actions, or 2) useEffect / useLayoutEffect for synchronization actions tied to component lifecycle.',
+    },
+    interviewInsight: "Strong candidates cite four specific failure modes: 1) Memory leaks (no cleanup possible), 2) Duplicate executions in Strict Mode, 3) Orphaned side effects during concurrent aborts, and 4) SSR crashes when accessing browser globals.",
+    relatedConcepts: ['Side Effect Isolation', 'Event Handlers vs Effects', 'Memory Leaks', 'Strict Mode'],
   },
   {
     id: 'int-11',
@@ -128,10 +434,38 @@ export const INTERVIEW_QUESTIONS_BY_CATEGORY: Record<string, InterviewQuestionIt
     question: 'How does React batch state updates?',
     difficulty: 'Senior',
     shortAnswer: 'React groups multiple state setter calls into a single render pass using an internal update queue associated with the Fiber lane priority.',
-    deepDive: 'When setState is called, React does not immediately execute component code. Instead, it creates an Update object, appends it to the Fiber\'s updateQueue, marks the Fiber with the appropriate Lane priority, and schedules a microtask via ensureRootIsScheduled. When that microtask runs, all queued updates for that lane are computed together, resulting in a single render and a single DOM commit.',
+    mentalModel: `Multiple State Updates Called in One Tick:
+setCount(c => c + 1)  ──┐
+setFlag(f => !f)       ──┼──► [Fiber UpdateQueue: 3 Updates]
+setName('Alex')        ──┘              │
+                                        ▼
+                           [Scheduled Microtask Runs]
+                                        │
+                                        ▼
+                          [SINGLE Render & SINGLE Commit]`,
+    deepDive: "When setState is called, React does not immediately execute component code. Instead, it creates an Update object, appends it to the Fiber's updateQueue, marks the Fiber with the appropriate Lane priority, and schedules a microtask via ensureRootIsScheduled. When that microtask runs, all queued updates for that lane are computed together, resulting in a single render and a single DOM commit.",
+    stepByStep: [
+      "1. setState is invoked: React creates an Update object containing the payload or updater function.",
+      "2. Queue Appending: React appends the Update object to the circular linked list on fiber.updateQueue.",
+      "3. Lane Marking: The Fiber and its ancestor path to the root are tagged with the update's Lane bitmask.",
+      "4. Scheduler Notification: ensureRootIsScheduled inspects all pending lanes and schedules a task on the microtask queue.",
+      "5. Microtask Execution: When the JavaScript call stack clears, React processes all queued updates together in a single render pass.",
+      "6. Single Commit: All resulting DOM mutations are applied in one atomic commit.",
+    ],
+    practicalExample: "In a shopping cart checkout button handler, `setIsSubmitting(true)`, `setCartTotal(0)`, and `setStep('confirmation')` are called sequentially. React batches all three updates, executing the checkout component's render function exactly once and updating the DOM in a single atomic reflow.",
     commonPitfalls: [
       'Expecting state variables to reflect the new value immediately on the line following setState().',
     ],
+    misconceptions: [
+      "Believing React creates a new render pass for every setState call in an event handler.",
+      "Assuming batching requires setTimeout or manual debounce utilities.",
+    ],
+    followUp: {
+      question: 'What is an updater function in setState (e.g. setCount(c => c + 1)) and why is it necessary with batching?',
+      answer: 'When multiple state setters are batched in the same event loop tick, closures capture the same initial state value. Passing an updater function queues calculations sequentially in the Fiber updateQueue: each updater receives the intermediate return value of the previous updater, ensuring calculations are computed accurately.',
+    },
+    interviewInsight: "Explain the internal mechanics: React uses a circular linked list for the update queue and bitwise Lane masks for priority. This demonstrates you know how React's engine actually executes under the hood rather than just knowing how to call the API.",
+    relatedConcepts: ['Automatic Batching', 'Circular Linked Lists', 'Microtask Queue', 'Updater Functions'],
     codeExample: `// All three setters are queued together -> only 1 re-render occurs
 function handleClick() {
   setCount(c => c + 1);
@@ -145,10 +479,38 @@ function handleClick() {
     question: 'What changed about automatic batching in React 18?',
     difficulty: 'Senior',
     shortAnswer: 'React 18 batches state updates everywhere by default—including inside Promises, setTimeout, fetch callbacks, and native event handlers.',
+    mentalModel: `React 17 Batching:
+onClick handler           ──► Batched (1 render)
+fetch().then(callback)    ──► NOT BATCHED! (2 renders for 2 setStates)
+setTimeout(callback)      ──► NOT BATCHED! (2 renders for 2 setStates)
+
+React 18 Automatic Batching (createRoot):
+onClick handler           ──► Batched (1 render)
+fetch().then(callback)    ──► BATCHED! (1 render)
+setTimeout(callback)      ──► BATCHED! (1 render)
+Native addEventListener   ──► BATCHED! (1 render)`,
     deepDive: 'Prior to React 18, batching only occurred within React synthetic event handlers (like onClick). Updates inside asynchronous callbacks (e.g., fetch().then(() => { setA(); setB(); })) resulted in two independent renders and two DOM commits. In React 18, createRoot enables automatic batching universally across all execution contexts. Developers can opt out using flushSync() when synchronous DOM reading is strictly required.',
+    stepByStep: [
+      "1. Legacy Mode (React 17): Batching relied on an internal execution flag inside synthetic event wrappers. Outside synthetic events, execution returned immediately to browser event loop.",
+      "2. React 18 createRoot: Batching is architected around microtask scheduling at the FiberRoot level.",
+      "3. When setState runs inside a Promise or setTimeout, React queues the updates in the lane and schedules a microtask.",
+      "4. The microtask collects all synchronous calls before yielding to the render phase.",
+      "5. Opt-out: If immediate synchronous DOM updates are required, developers wrap the setter in flushSync().",
+    ],
+    practicalExample: "A data table fetches the next page of records via `fetch().then(...)`. Upon response, it calls `setData(items)` and `setIsLoading(false)`. In React 17, the table rendered twice, showing a flicker where loading was true but data was already populated. In React 18, automatic batching combines both into a single seamless render.",
     commonPitfalls: [
       'Using ReactDOM.flushSync unnecessarily, which defeats performance optimizations and harms concurrent scheduling.',
     ],
+    misconceptions: [
+      "Thinking automatic batching works when using the legacy `ReactDOM.render` API. It requires upgrading the root to `ReactDOM.createRoot`.",
+      "Assuming flushSync should be used whenever you want fast updates. flushSync forces de-optimization and blocks the main thread.",
+    ],
+    followUp: {
+      question: 'When is using ReactDOM.flushSync genuinely necessary?',
+      answer: 'When you must mutate state and immediately measure the resulting DOM in the very next line of code—for example, measuring the height of a newly inserted chat message to immediately adjust scroll position before the next event loop frame.',
+    },
+    interviewInsight: "Clarify the migration boundary: Automatic batching is an opt-in breaking change tied specifically to `createRoot()`. Mentioning `flushSync()` as the escape hatch shows you understand both the performance optimization and edge-case exceptions.",
+    relatedConcepts: ['createRoot vs render', 'flushSync', 'Event Loop Microtasks', 'Async Race Conditions'],
   },
   {
     id: 'int-13',
@@ -156,10 +518,46 @@ function handleClick() {
     question: 'Why can React render a component multiple times before committing it?',
     difficulty: 'Architect',
     shortAnswer: 'In concurrent rendering, React can pause or abort a low-priority render if high-priority work arrives, restarting the render from scratch later.',
+    mentalModel: `[Low-Priority Transition: 5,000 Item List Render]
+Fiber 1 -> Fiber 2 -> Fiber 3... (Render at 40% complete)
+                               │
+                [USER TYPES IN SEARCH INPUT!]
+                               │
+                               ▼ (High-Priority Discrete Lane Arrives)
+[PAUSE & DISCARD Low-Priority WorkInProgress Tree]
+                               │
+                               ▼
+[Execute Search Input Render & Commit Immediately! (~2ms)]
+                               │
+                               ▼
+[RESTART 5,000 Item List Render From Scratch]
+                               │
+                               ▼
+[Commit Final List Result to DOM]`,
     deepDive: 'Suppose React is rendering a heavy 5,000-row list wrapped in useTransition (low priority lane). If the user types a character into an input field (Default/Discrete lane), React halts the list render, prioritizes the keystroke update, renders and commits the input, and then restarts the list render. The component in the list may thus evaluate its render phase multiple times before a single commit occurs.',
+    stepByStep: [
+      "1. A low-priority lane starts rendering in the background (e.g. useTransition or Suspense).",
+      "2. React yields every 5ms to check the browser event queue for incoming user input.",
+      "3. A high-priority user interaction (keystroke, tap) queues an urgent discrete lane update.",
+      "4. React's scheduler compares lane priorities: Discrete Lane > Transition Lane.",
+      "5. React aborts the current work-in-progress tree, discarding partial calculations.",
+      "6. React renders and commits the high-priority update synchronously.",
+      "7. The scheduler resumes or restarts the low-priority render with fresh props and state.",
+    ],
+    practicalExample: "In an e-commerce catalog, filtering 10,000 products with `startTransition` runs in the background. If the customer rapidly clicks three different filter checkboxes, React discards the first two partially computed renders and only commits the final filter state, eliminating intermediate UI jank.",
     commonPitfalls: [
       'Assuming 1 render = 1 commit. The relationship is N renders to 0 or 1 commit.',
     ],
+    misconceptions: [
+      "Assuming a component re-rendering multiple times is always a performance bug. In Concurrent React, preemptive restarts are an intentional responsiveness feature.",
+      "Believing discarded renders leak memory. React simply abandons the workInProgress root pointer, allowing V8 garbage collection to sweep it.",
+    ],
+    followUp: {
+      question: 'What happens to hook states (like useState) during an aborted render?',
+      answer: 'Because state changes are only committed when the entire tree finishes, an aborted render simply discards the uncommitted workInProgress Fiber. The existing current Fiber tree and its state remain completely unaltered.',
+    },
+    interviewInsight: "Summarize with the formula: 'The relationship between render and commit is N-to-1 or N-to-0.' Explaining how cooperative scheduling yields every 5ms demonstrates deep familiarity with the React codebase internals.",
+    relatedConcepts: ['Concurrent Mode', 'useTransition', 'Lane Priority Preemption', 'Cooperative Scheduling'],
   },
   {
     id: 'int-14',
@@ -167,10 +565,40 @@ function handleClick() {
     question: 'What is the relationship between component trees and Fiber trees?',
     difficulty: 'Senior',
     shortAnswer: 'A component tree is the nested conceptual hierarchy of React elements (JSX), whereas the Fiber tree is the persistent internal data structure of mutable nodes that tracks state, props, and scheduled work.',
+    mentalModel: `[Component Tree: Ephemeral JSX Objects]
+<App>
+  └── <Sidebar>
+        └── <UserBadge name="Alex" />
+(Destroyed & recreated on every render call)
+
+[Fiber Tree: Persistent Internal State Machine]
+RootFiber
+  └── Fiber(App)
+        └── child: Fiber(Sidebar)
+                     └── child: Fiber(UserBadge)
+(Holds: memoizedState, pendingProps, lanes, DOM pointer, sibling/return links)`,
     deepDive: 'React elements returned by JSX are ephemeral, immutable plain objects created and garbage collected on every render. Fibers, by contrast, are long-lived internal nodes created on initial mount and reused across renders (double buffering). A Fiber holds component state (memoizedState), incoming props (pendingProps), memoized props, connections to sibling/parent/child fibers, and the work flags indicating required DOM mutations.',
+    stepByStep: [
+      "1. Component Tree: Consists of lightweight { $$typeof, type, props, key } objects returned by JSX calls.",
+      "2. Fiber Node Creation: On initial mount, React instantiates a Fiber node for every component and host element.",
+      "3. Pointer Structure: Instead of an array of children, Fibers form a singly-linked tree via 'child', 'sibling', and 'return' pointers.",
+      "4. Double Buffering: React maintains two Fiber trees: 'current' (what is on screen) and 'workInProgress' (what is being rendered).",
+      "5. Commit Swap: At the end of the commit phase, React points FiberRoot.current to the workInProgress tree in O(1) time.",
+    ],
+    practicalExample: "In high-frequency rendering animations, recreating complex internal state machines would cause severe GC pauses. Because React reuses Fiber nodes via the alternate pointer (double buffering), memory allocation is kept near zero during re-renders, preventing frame drops.",
     commonPitfalls: [
       'Thinking React recreates its entire internal state machine on every render.',
     ],
+    misconceptions: [
+      "Confusing React elements (JSX objects) with Fibers. React elements are recreated every render; Fibers persist across renders.",
+      "Assuming Fibers use standard array child pointers like the DOM. Fibers use child/sibling/return pointers to enable pausing and resuming tree traversal.",
+    ],
+    followUp: {
+      question: 'Why did React adopt a singly-linked list tree structure (child, sibling, return) for Fibers instead of children arrays?',
+      answer: 'Because traversing a recursive tree with a call stack cannot be paused or resumed. With singly-linked child, sibling, and return pointers, React can pause traversal at any arbitrary node, return control to the browser event loop, and later resume traversal from that exact node without maintaining a deep JavaScript call stack.',
+    },
+    interviewInsight: "Describe the 'child, sibling, return' pointer structure and double-buffering. Comparing it to graphic card framebuffers (swapping front buffer and back buffer) instantly proves senior engineering comprehension.",
+    relatedConcepts: ['Double Buffering', 'Alternate Fiber Pointer', 'Singly Linked Tree', 'GC Pressure'],
   },
   {
     id: 'int-15',
@@ -178,10 +606,38 @@ function handleClick() {
     question: "Why is React's architecture designed around incremental rendering?",
     difficulty: 'Principal',
     shortAnswer: 'Incremental rendering allows React to break rendering work into small chunks and spread them over multiple animation frames to prevent the main thread from blocking user interactions.',
+    mentalModel: `[Synchronous Stack Reconciler (Legacy React)]
+|══════════════════════════════════════════════════| 120ms blocking JS
+User clicks button ──► Browser frozen! ──► Frames dropped!
+
+[Incremental Fiber Scheduler (Concurrent React)]
+|══ 5ms ══| yield |══ 5ms ══| yield |══ 5ms ══|
+              │                 │
+              ▼                 ▼
+     Process User Click!  Process Scroll!  (60/120 FPS Maintained!)`,
     deepDive: 'JavaScript runs on a single thread alongside layout, style recalculation, and painting. If a monolithic synchronous render takes 100ms, the browser cannot process user clicks, typing, or scrolling during that time, dropping frames and causing jank. Incremental rendering via Fiber gives React a cooperative scheduler (yielding after ~5ms intervals) so high-priority user input is processed immediately without freezing the UI.',
+    stepByStep: [
+      "1. Monolithic Rendering Bottleneck: In React 15 (Stack Reconciler), render was a recursive, non-cancellable JavaScript call stack.",
+      "2. Fiber Virtual Call Stack: Fiber re-architects the call stack into individual heap-allocated Fiber frame objects.",
+      "3. Time Slicing: React's work loop checks shouldYield() every ~5ms using performance.now().",
+      "4. Yield to Host: When the 5ms budget expires, React schedules a MessageChannel task and returns control to the browser.",
+      "5. Browser Processing: The browser executes pending mouse clicks, keyboard input, animations, and paint passes.",
+      "6. Resume Work: React picks up the workInProgress Fiber where it left off on the next tick.",
+    ],
+    practicalExample: "Consider a complex spreadsheet application like Google Sheets built in React. When a formula updates 10,000 cells, incremental rendering chunks the calculation across 20 frames. If the user scrolls while the calculation is running, the scroll responds instantly without hitching.",
     commonPitfalls: [
       'Assuming incremental rendering makes rendering finish faster in total wall-clock time; it actually optimizes responsiveness and frame-rate budget, not raw computational throughput.',
     ],
+    misconceptions: [
+      "Believing incremental rendering improves total computation speed. Breaking work into chunks incurs slight scheduler overhead; its goal is UI responsiveness (INP/FID), not raw CPU throughput.",
+      "Assuming React uses Web Workers for rendering. Incremental rendering operates on the main thread using cooperative multitasking.",
+    ],
+    followUp: {
+      question: 'How does React know when to yield back to the browser during incremental rendering?',
+      answer: 'React uses a cooperative scheduling work loop: `while (workInProgress !== null && !shouldYield())`. In modern browsers, `shouldYield()` uses a 5ms deadline computed via `performance.now()` and posts a message via `MessageChannel` to yield without the 4ms throttling penalty of `setTimeout(0)`.',
+    },
+    interviewInsight: "Address the trade-off honestly: Incremental rendering actually increases total wall-clock execution time slightly due to scheduling overhead, but it drastically improves Core Web Vitals (specifically INP - Interaction to Next Paint) by eliminating main-thread freezes.",
+    relatedConcepts: ['Time Slicing', 'MessageChannel vs setTimeout', 'Interaction to Next Paint (INP)', 'Cooperative Multitasking'],
   },
 ],
   "Fiber Internals": [
@@ -191,10 +647,41 @@ function handleClick() {
     question: 'What is a Fiber node?',
     difficulty: 'Senior',
     shortAnswer: 'A Fiber node is a plain JavaScript object that represents a unit of work and a component instance in React\'s internal reconciliation engine.',
+    mentalModel: `┌────────────────────────────────────────────────────────┐
+│ Fiber Node (Heap Object)                               │
+├────────────────────────────────────────────────────────┤
+│ • tag: FunctionComponent (0)                           │
+│ • key: "user-card"                                     │
+│ • stateNode: null (or HTMLButtonElement for Host)      │
+│ • child ────► Points to first child Fiber              │
+│ • sibling ──► Points to next sibling Fiber             │
+│ • return ───► Points to parent Fiber (return address)  │
+│ • memoizedState ──► Head of Hooks singly-linked list   │
+│ • alternate ──────► Counterpart in double-buffer tree  │
+│ • flags: Placement | Update (bitmask side effects)     │
+└────────────────────────────────────────────────────────┘`,
     deepDive: 'Conceptually, a Fiber is an individual stack frame with its own call stack reimplemented in heap memory. Before Fiber, React used the browser call stack recursively ("Stack Reconciler"), making work impossible to interrupt or pause. A Fiber contains pointers to its child, sibling, and parent (return), alongside component state (memoizedState), props (memoizedProps / pendingProps), update queues, and effect flags.',
+    stepByStep: [
+      "1. React instantiates a Fiber object (createFiber) when mounting a component or element.",
+      "2. The node is wired into the hierarchy using singly-linked list pointers: child, sibling, return.",
+      "3. Hook calls during render create hook records stored sequentially along the Fiber's memoizedState pointer.",
+      "4. The alternate pointer links this Fiber to its counterpart in the alternate tree (current <-> workInProgress).",
+      "5. When state changes, lanes are assigned to the Fiber to dictate execution priority.",
+    ],
+    practicalExample: "When debugging an unhandled exception in React devtools or error boundaries, `_reactInternals` or `_reactFiber` exposes this exact object structure on DOM nodes, allowing tools to inspect hook states, props, and component hierarchy in memory.",
     commonPitfalls: [
       'Confusing a Fiber with a DOM node or a React element. A React element is a transient lightweight description; a Fiber is persistent mutable internal infrastructure.',
     ],
+    misconceptions: [
+      "Assuming Fibers are created and destroyed on every render. Fibers are persistent objects reused across renders via double-buffering.",
+      "Believing React Fiber is a web worker or multi-threaded background process. It is a single-threaded cooperative scheduler.",
+    ],
+    followUp: {
+      question: 'Why is the parent pointer in a Fiber called "return" instead of "parent"?',
+      answer: 'Because a Fiber is conceptually a virtual stack frame. Just as returning from a function call returns control to the caller frame on the call stack, completing work on a Fiber returns control to its parent Fiber in the work loop.',
+    },
+    interviewInsight: "Call out that the `return` pointer represents the return address of a function stack frame. Interviewers love this detail because it proves you understand the historical motivation: Fiber is a virtual call stack implemented in heap memory.",
+    relatedConcepts: ['Virtual Call Stack', 'Double Buffering', 'Hook Linked Lists', 'Alternate Pointer'],
   },
   {
     id: 'int-17',
@@ -202,10 +689,40 @@ function handleClick() {
     question: 'Why did React introduce Fiber?',
     difficulty: 'Senior',
     shortAnswer: 'To enable incremental rendering, work prioritization, concurrency, and interruptible execution by moving the call stack off the browser\'s synchronous execution stack and into heap-allocated linked lists.',
+    mentalModel: `[Legacy Stack Reconciler (React 15)]
+JS Call Stack: [renderA -> renderB -> renderC -> renderD]
+• Cannot be paused or yielded.
+• If render takes 80ms, the main thread freezes for 80ms!
+
+[Fiber Architecture (React 16+)]
+while (workInProgress !== null && !shouldYield()) {
+  performUnitOfWork(workInProgress);
+}
+• Can pause after any Fiber!
+• Can yield to process urgent user keystrokes!
+• Can discard or restart incomplete work!`,
     deepDive: 'With the legacy Stack Reconciler, rendering a deep component tree monopolized the main thread until the entire tree was traversed. User clicks and keyboard input had to wait in the event loop queue, causing input latency and dropped frames. Fiber turned rendering into an explicit cooperative loop: `while (workInProgress !== null && !shouldYield()) { performUnitOfWork(workInProgress); }`.',
+    stepByStep: [
+      "1. Stack Reconciler Era: Tree traversal relied on JavaScript function recursion. Once started, it ran to completion synchronously.",
+      "2. The Problem: On large applications, synchronous reconciliation exceeded the 16ms frame budget, causing animation stutter and unresponsive inputs.",
+      "3. Fiber Solution: Break reconciliation into units of work represented by Fiber nodes.",
+      "4. The Work Loop: Instead of recursive function calls, React runs an iterative loop that checks remaining time using performance.now().",
+      "5. Yielding & Resuming: When the deadline is reached, React yields back to the browser event loop and resumes at the next available idle slice.",
+    ],
+    practicalExample: "In an interactive dashboard with continuous real-time data streaming, high-frequency chart updates used to freeze the page. With Fiber, React processes chart updates in small 5ms time slices while responding to user drag, zoom, and clicks instantly without dropped frames.",
     commonPitfalls: [
       'Saying Fiber was introduced purely to make React faster. Its primary goal is scheduling and responsiveness, not raw computation speed.',
     ],
+    misconceptions: [
+      "Thinking Fiber made React code run faster in raw benchmarks. Fiber added slight object allocation overhead; its purpose was scheduling responsiveness, not raw speed.",
+      "Believing Fiber works by utilizing multiple CPU threads via Web Workers. It is entirely single-threaded cooperative multitasking.",
+    ],
+    followUp: {
+      question: 'What is the difference between cooperative scheduling and preemptive scheduling, and which does React use?',
+      answer: 'Preemptive scheduling forcibly interrupts running code at any CPU instruction (like an OS scheduler). JavaScript is single-threaded and non-preemptive. React uses cooperative scheduling: React voluntarily checks `shouldYield()` between Fiber work units and yields the thread back to the browser.',
+    },
+    interviewInsight: "Emphasize: 'Fiber was not built to make React faster; it was built to make React schedulable.' Differentiating throughput from latency/responsiveness is a classic sign of an architect-level engineer.",
+    relatedConcepts: ['Cooperative Scheduling', 'Time Slicing', 'Stack Reconciler', 'Main Thread Jitter'],
   },
   {
     id: 'int-18',

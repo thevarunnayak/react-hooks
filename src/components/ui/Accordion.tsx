@@ -13,27 +13,43 @@ export interface AccordionProps {
   items: AccordionItem[];
   defaultOpenId?: string;
   allowMultiple?: boolean;
+  openIds?: string[];
+  onToggle?: (id: string) => void;
 }
 
 export const Accordion: React.FC<AccordionProps> = ({
   items,
   defaultOpenId,
   allowMultiple = false,
+  openIds: controlledOpenIds,
+  onToggle,
 }) => {
-  const [openIds, setOpenIds] = useState<string[]>(defaultOpenId ? [defaultOpenId] : []);
+  const [internalOpenIds, setInternalOpenIds] = useState<string[]>(
+    defaultOpenId ? [defaultOpenId] : []
+  );
+
+  const isControlled = controlledOpenIds !== undefined;
+  const activeOpenIds = isControlled ? controlledOpenIds : internalOpenIds;
 
   const toggle = (id: string) => {
-    if (allowMultiple) {
-      setOpenIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
-    } else {
-      setOpenIds((prev) => (prev.includes(id) ? [] : [id]));
+    if (onToggle) {
+      onToggle(id);
+    }
+    if (!isControlled) {
+      if (allowMultiple) {
+        setInternalOpenIds((prev) =>
+          prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+        );
+      } else {
+        setInternalOpenIds((prev) => (prev.includes(id) ? [] : [id]));
+      }
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
       {items.map((item) => {
-        const isOpen = openIds.includes(item.id);
+        const isOpen = activeOpenIds.includes(item.id);
         return (
           <div
             key={item.id}

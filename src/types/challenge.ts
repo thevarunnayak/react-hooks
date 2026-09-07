@@ -36,9 +36,15 @@ export interface InterviewQuestionItem {
   question: string;
   difficulty: InterviewDifficulty;
   shortAnswer: string;
+  mentalModel?: string;
   deepDive: string;
-  commonPitfalls: string[];
+  stepByStep?: string[];
+  practicalExample?: string;
   codeExample?: string;
+  commonPitfalls: string[];
+  misconceptions?: string[];
   followUp?: InterviewFollowUp;
+  interviewInsight?: string;
+  relatedConcepts?: string[];
 }
 

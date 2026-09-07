@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { INTERVIEW_QUESTIONS_LIST, INTERVIEW_CATEGORIES } from '../data/interviews';
 import { Card } from '../components/ui/Card';
 import { Badge, BadgeProps } from '../components/ui/Badge';
@@ -16,8 +16,21 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Headphones,
+  Sparkles,
+  Workflow,
+  Compass,
+  Volume2,
 } from 'lucide-react';
 import { InterviewDifficulty, InterviewQuestionItem } from '../types/challenge';
+import { useInterviewAudio } from '../hooks/useInterviewAudio';
+import { AudioCoachPlayer } from '../components/interviewAudio/AudioCoachPlayer';
+import { AudioSettingsModal } from '../components/interviewAudio/AudioSettingsModal';
+import { AudioTranscriptDrawer } from '../components/interviewAudio/AudioTranscriptDrawer';
+import { ResumeAudioBanner } from '../components/interviewAudio/ResumeAudioBanner';
+import { buildQuestionAudioSegments } from '../services/interviewAudio/audioSegmentBuilder';
 
 const DIFFICULTY_BADGE_VARIANTS: Record<InterviewDifficulty, BadgeProps['variant']> = {
   Junior: 'default',
@@ -33,6 +46,9 @@ export const InterviewPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [revealedFollowUps, setRevealedFollowUps] = useState<Record<string, boolean>>({});
+  const [openQuestionIds, setOpenQuestionIds] = useState<string[]>([]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [userHasScrolledAway, setUserHasScrolledAway] = useState(false);
 
   // Local-first persistent mastery tracking
   const [masteredIds, setMasteredIds] = useState<string[]>(() => {
@@ -58,11 +74,18 @@ export const InterviewPage: React.FC = () => {
     );
   };
 
+  const [expandedKnowledgeIds, setExpandedKnowledgeIds] = useState<Record<string, boolean>>({});
+
+  const toggleKnowMore = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setExpandedKnowledgeIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   const toggleFollowUp = (id: string) => {
     setRevealedFollowUps((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Filter questions
+  // Filter questions based on search, category, and difficulty
   const filteredQuestions = useMemo(() => {
     return INTERVIEW_QUESTIONS_LIST.filter((q) => {
       const matchesCat = selectedCategory === 'All' || q.category === selectedCategory;
@@ -79,6 +102,9 @@ export const InterviewPage: React.FC = () => {
       return matchesCat && matchesDiff && matchesSearch;
     });
   }, [search, selectedCategory, selectedDifficulty]);
+
+  // Initialize Audio Learning Hook
+  const audio = useInterviewAudio(filteredQuestions);
 
   // Dynamic category counts based on selected difficulty level
   const categoryCounts = useMemo(() => {
@@ -151,6 +177,77 @@ export const InterviewPage: React.FC = () => {
     return () => observer.disconnect();
   }, [hasMore, filteredQuestions.length]);
 
+  // Synchronize Audio Question: Automatically expand question accordion card and reveal follow-up if narrated
+  useEffect(() => {
+    if (!audio.currentQuestion?.id) return;
+    const qId = audio.currentQuestion.id;
+
+    // Ensure the question's card is expanded
+    setOpenQuestionIds((prev) => (prev.includes(qId) ? prev : [...prev, qId]));
+
+    // Ensure question is loaded in visibleQuestions
+    const qIndex = filteredQuestions.findIndex((q) => q.id === qId);
+    if (qIndex >= 0 && qIndex >= visibleCount) {
+      setVisibleCount(qIndex + 10);
+    }
+
+    // If active segment is follow-up, automatically reveal the follow-up answer
+    if (audio.currentSegment?.type === 'follow-up') {
+      setRevealedFollowUps((prev) => ({ ...prev, [qId]: true }));
+    }
+  }, [audio.currentQuestion?.id, audio.currentSegment?.type, filteredQuestions, visibleCount]);
+
+  // Smooth Auto-Scroll to Active Section
+  const isProgrammaticScrollRef = useRef(false);
+
+  const scrollToActiveSegment = useCallback(() => {
+    if (!audio.currentSegment) return;
+    const el = document.getElementById(audio.currentSegment.targetElementId);
+    if (el) {
+      isProgrammaticScrollRef.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setUserHasScrolledAway(false);
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 800);
+    }
+  }, [audio.currentSegment]);
+
+  useEffect(() => {
+    if (audio.playbackState === 'playing' && audio.settings.autoFollow && audio.currentSegment) {
+      scrollToActiveSegment();
+    }
+  }, [audio.currentSegment, audio.playbackState, audio.settings.autoFollow, scrollToActiveSegment]);
+
+  // Detect manual user scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isProgrammaticScrollRef.current) return;
+      if (audio.playbackState === 'playing' && audio.settings.autoFollow) {
+        setUserHasScrolledAway(true);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [audio.playbackState, audio.settings.autoFollow]);
+
+  // Accordion Toggle Handler
+  const handleAccordionToggle = (id: string) => {
+    setOpenQuestionIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  // Segments for transcript drawer
+  const transcriptSegments = useMemo(() => {
+    if (!audio.currentQuestion) return [];
+    return buildQuestionAudioSegments(
+      audio.currentQuestion,
+      audio.progressInfo.currentQuestionIndex
+    );
+  }, [audio.currentQuestion, audio.progressInfo.currentQuestionIndex]);
+
   const masteredPercentage = Math.round(
     (masteredIds.length / INTERVIEW_QUESTIONS_LIST.length) * 100
   );
@@ -158,33 +255,44 @@ export const InterviewPage: React.FC = () => {
   return (
     <div
       style={{
-        padding: 'var(--space-6) var(--space-8)',
+        padding: 'var(--space-6) var(--space-8) 120px var(--space-8)',
         maxWidth: '1080px',
         margin: '0 auto',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--space-6)',
+        position: 'relative',
       }}
       className="interview-page"
     >
+      {/* Resume Audio Session Banner */}
+      {audio.savedProgress && audio.playbackState === 'idle' && (
+        <ResumeAudioBanner
+          progress={audio.savedProgress}
+          onResume={audio.resumeSavedProgress}
+          onDismiss={audio.dismissSavedProgress}
+        />
+      )}
+
       {/* Header Banner */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-md)',
+                width: '42px',
+                height: '42px',
+                borderRadius: 'var(--radius-lg)',
                 backgroundColor: 'var(--accent-purple-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent-purple)',
+                boxShadow: '0 2px 8px rgba(139, 92, 246, 0.2)',
               }}
             >
-              <Award size={22} />
+              <Award size={24} />
             </div>
             <div>
               <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
@@ -194,6 +302,30 @@ export const InterviewPage: React.FC = () => {
                 220 rigorous architectural questions testing internal Fiber workings, concurrent transitions, stale closures, Suspense, and state systems.
               </p>
             </div>
+          </div>
+
+          {/* Primary Audio Learning Player Button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Button
+              variant={audio.playbackState === 'playing' ? 'secondary' : 'primary'}
+              size="sm"
+              icon={<Headphones size={15} />}
+              onClick={() => {
+                if (audio.playbackState === 'playing') {
+                  audio.pause();
+                } else if (audio.playbackState === 'paused') {
+                  audio.resume();
+                } else {
+                  audio.play();
+                }
+              }}
+            >
+              {audio.playbackState === 'playing'
+                ? 'Pause Audio Coach'
+                : audio.playbackState === 'paused'
+                ? 'Resume Audio Coach'
+                : 'Listen to Interview Prep'}
+            </Button>
           </div>
         </div>
 
@@ -419,25 +551,108 @@ export const InterviewPage: React.FC = () => {
         </Card>
       ) : (
         <Accordion
+          openIds={openQuestionIds}
+          onToggle={handleAccordionToggle}
           items={visibleQuestions.map((item: InterviewQuestionItem) => {
             const isMastered = masteredIds.includes(item.id);
             const isFollowUpRevealed = revealedFollowUps[item.id];
             const badgeVariant = DIFFICULTY_BADGE_VARIANTS[item.difficulty] || 'default';
+            const isQuestionActiveInAudio = audio.currentQuestion?.id === item.id;
+            const isPlayerOn = audio.playbackState === 'playing' || audio.playbackState === 'paused';
+            const isThisQuestionActiveInAudio = isQuestionActiveInAudio && isPlayerOn;
+            const currentSegmentId = audio.currentSegment?.id;
+
+            const hasNewContent = Boolean(
+              item.mentalModel ||
+              (item.stepByStep && item.stepByStep.length > 0) ||
+              item.practicalExample ||
+              (item.misconceptions && item.misconceptions.length > 0) ||
+              item.interviewInsight ||
+              (item.relatedConcepts && item.relatedConcepts.length > 0)
+            );
+
+            // Show everything when player is on OR when user explicitly toggled "Know More"
+            const isKnowMoreExpanded = isPlayerOn || Boolean(expandedKnowledgeIds[item.id]);
 
             return {
               id: item.id,
               title: (
-                <div id={`interview-q-${item.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  id={`interview-q-${item.id}`}
+                  className={`audio-clickable-segment ${
+                    currentSegmentId === `${item.id}-question` ? 'audio-active-segment' : ''
+                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '2px 4px',
+                  }}
+                  onClick={(e) => {
+                    // If audio is playing, clicking title jumps to question
+                    if (audio.playbackState !== 'idle') {
+                      e.stopPropagation();
+                      audio.jumpToSegment(`${item.id}-question`);
+                    }
+                  }}
+                >
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
                     #{item.id.replace('int-', '')}
                   </span>
                   <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
                     {item.question}
                   </span>
+                  {isQuestionActiveInAudio && (
+                    <span
+                      title="Currently being narrated by Audio Coach"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: 'var(--accent-purple)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <Volume2 size={13} style={{ animation: 'pulse 1s infinite' }} />
+                    </span>
+                  )}
                 </div>
               ),
               badge: (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {/* Play Question Quick Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isQuestionActiveInAudio && audio.playbackState === 'playing') {
+                        audio.pause();
+                      } else {
+                        audio.jumpToQuestion(item.id);
+                      }
+                    }}
+                    title="Listen to this question aloud"
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      border: '1px solid',
+                      borderColor: isQuestionActiveInAudio ? 'var(--accent-purple)' : 'var(--border-subtle)',
+                      backgroundColor: isQuestionActiveInAudio ? 'var(--accent-purple-subtle)' : 'var(--bg-subtle)',
+                      color: isQuestionActiveInAudio ? 'var(--accent-purple-text)' : 'var(--text-secondary)',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    <Headphones size={11} />
+                    <span>{isQuestionActiveInAudio && audio.playbackState === 'playing' ? 'Playing' : 'Listen'}</span>
+                  </button>
+
                   <Badge variant={badgeVariant} size="sm">
                     {item.difficulty}
                   </Badge>
@@ -466,8 +681,13 @@ export const InterviewPage: React.FC = () => {
                     </Button>
                   </div>
 
-                  {/* Short Answer */}
+                  {/* 1. Short Answer / Executive Summary */}
                   <div
+                    id={`interview-summary-${item.id}`}
+                    className={`audio-clickable-segment ${
+                      currentSegmentId === `${item.id}-summary` ? 'audio-active-segment' : ''
+                    }`}
+                    onClick={() => audio.jumpToSegment(`${item.id}-summary`)}
                     style={{
                       padding: '12px',
                       borderRadius: 'var(--radius-sm)',
@@ -482,8 +702,13 @@ export const InterviewPage: React.FC = () => {
                     <span>{item.shortAnswer}</span>
                   </div>
 
-                  {/* Deep Dive */}
+                  {/* 2. Architectural Deep Dive */}
                   <div
+                    id={`interview-deep-dive-${item.id}`}
+                    className={`audio-clickable-segment ${
+                      currentSegmentId === `${item.id}-deep-dive` ? 'audio-active-segment' : ''
+                    }`}
+                    onClick={() => audio.jumpToSegment(`${item.id}-deep-dive`)}
                     style={{
                       padding: '12px 14px',
                       borderRadius: 'var(--radius-sm)',
@@ -503,7 +728,7 @@ export const InterviewPage: React.FC = () => {
                     <span>{item.deepDive}</span>
                   </div>
 
-                  {/* Code Example (if available) */}
+                  {/* 3. Code Reasoning (if available) */}
                   {item.codeExample && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -529,9 +754,14 @@ export const InterviewPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Candidate Pitfall */}
+                  {/* 4. Common Pitfalls & Traps */}
                   {item.commonPitfalls && item.commonPitfalls.length > 0 && (
                     <div
+                      id={`interview-pitfall-${item.id}`}
+                      className={`audio-clickable-segment ${
+                        currentSegmentId === `${item.id}-pitfall` ? 'audio-active-segment' : ''
+                      }`}
+                      onClick={() => audio.jumpToSegment(`${item.id}-pitfall`)}
                       style={{
                         padding: '10px 12px',
                         borderRadius: 'var(--radius-sm)',
@@ -553,9 +783,14 @@ export const InterviewPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Follow-Up Question (Adaptive Questioning) */}
+                  {/* 5. Follow-Up Question (Adaptive Questioning) */}
                   {item.followUp && (
                     <div
+                      id={`interview-followup-${item.id}`}
+                      className={`audio-clickable-segment ${
+                        currentSegmentId === `${item.id}-follow-up` ? 'audio-active-segment' : ''
+                      }`}
+                      onClick={() => audio.jumpToSegment(`${item.id}-follow-up`)}
                       style={{
                         padding: '10px 12px',
                         borderRadius: 'var(--radius-sm)',
@@ -577,7 +812,10 @@ export const InterviewPage: React.FC = () => {
                           size="xs"
                           variant="ghost"
                           icon={<Eye size={12} />}
-                          onClick={() => toggleFollowUp(item.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFollowUp(item.id);
+                          }}
                         >
                           {isFollowUpRevealed ? 'Hide Answer' : 'Reveal Answer'}
                         </Button>
@@ -605,12 +843,341 @@ export const InterviewPage: React.FC = () => {
                       )}
                     </div>
                   )}
+
+                  {/* Know More Toggle Button for Normal Reading */}
+                  {hasNewContent && !isPlayerOn && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '2px' }}>
+                      <button
+                        onClick={(e) => toggleKnowMore(item.id, e)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 14px',
+                          borderRadius: 'var(--radius-full)',
+                          border: '1px solid',
+                          borderColor: isKnowMoreExpanded ? 'var(--accent-purple)' : 'var(--border-default)',
+                          backgroundColor: isKnowMoreExpanded ? 'var(--accent-purple-subtle)' : 'var(--bg-subtle)',
+                          color: isKnowMoreExpanded ? 'var(--accent-purple-text)' : 'var(--text-secondary)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all var(--transition-fast)',
+                        }}
+                      >
+                        <Sparkles size={12} style={{ color: 'var(--accent-purple)' }} />
+                        <span>{isKnowMoreExpanded ? 'Show Less' : 'Know More'}</span>
+                        {isKnowMoreExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Audio Player Active Indicator (When player is on) */}
+                  {hasNewContent && isPlayerOn && isThisQuestionActiveInAudio && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor: 'var(--accent-purple-subtle)',
+                        border: '1px solid rgba(139, 92, 246, 0.25)',
+                      }}
+                    >
+                      <span style={{ fontSize: '10px', color: 'var(--accent-purple)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Sparkles size={11} />
+                        Full Senior Blueprint & Insights (Audio Active)
+                      </span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Auto-Expanded</span>
+                    </div>
+                  )}
+
+                  {/* EXTENDED SECTIONS: Hidden during normal reading unless 'Know More' is clicked, or shown automatically when Audio Player is on */}
+                  {isKnowMoreExpanded && hasNewContent && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        paddingTop: '6px',
+                        borderTop: '1px dashed var(--border-subtle)',
+                        animation: 'fadeIn 0.25s ease-out',
+                      }}
+                    >
+                      {/* Mental Model & Flow */}
+                      {item.mentalModel && (
+                        <div
+                          id={`interview-mental-model-${item.id}`}
+                          className={`audio-clickable-segment ${
+                            currentSegmentId === `${item.id}-mental-model` ? 'audio-active-segment' : ''
+                          }`}
+                          onClick={() => audio.jumpToSegment(`${item.id}-mental-model`)}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--accent-purple)' }}>
+                            <Workflow size={14} />
+                            <strong style={{ color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Mental Model & Execution Flow:
+                            </strong>
+                          </div>
+                          <pre
+                            style={{
+                              margin: 0,
+                              padding: '10px 12px',
+                              borderRadius: 'var(--radius-xs)',
+                              backgroundColor: 'var(--bg-code)',
+                              border: '1px solid var(--border-subtle)',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '11px',
+                              color: 'var(--text-primary)',
+                              overflowX: 'auto',
+                              lineHeight: 1.45,
+                            }}
+                          >
+                            <code>{item.mentalModel}</code>
+                          </pre>
+                        </div>
+                      )}
+
+                      {/* Step-by-Step Breakdown */}
+                      {item.stepByStep && item.stepByStep.length > 0 && (
+                        <div
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                          }}
+                        >
+                          <strong style={{ fontSize: '11px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Step-by-Step Lifecycle Sequence:
+                          </strong>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {item.stepByStep.map((step, sIdx) => {
+                              const isStepActive = currentSegmentId === `${item.id}-step-${sIdx}`;
+                              return (
+                                <div
+                                  key={sIdx}
+                                  id={`interview-step-${item.id}-${sIdx}`}
+                                  className={`audio-clickable-segment ${isStepActive ? 'audio-active-segment' : ''}`}
+                                  onClick={() => audio.jumpToSegment(`${item.id}-step-${sIdx}`)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '8px',
+                                    padding: '6px 8px',
+                                    borderRadius: 'var(--radius-xs)',
+                                    backgroundColor: isStepActive ? 'var(--accent-purple-subtle)' : 'var(--bg-subtle)',
+                                    fontSize: 'var(--text-xs)',
+                                    color: 'var(--text-secondary)',
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      padding: '1px 6px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'var(--bg-surface)',
+                                      border: '1px solid var(--border-subtle)',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontSize: '10px',
+                                      fontWeight: 700,
+                                      color: 'var(--accent-purple-text)',
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {sIdx + 1}
+                                  </span>
+                                  <span>{step}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Production Practical Example */}
+                      {item.practicalExample && (
+                        <div
+                          id={`interview-example-${item.id}`}
+                          className={`audio-clickable-segment ${
+                            currentSegmentId === `${item.id}-example` ? 'audio-active-segment' : ''
+                          }`}
+                          onClick={() => audio.jumpToSegment(`${item.id}-example`)}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: 'var(--text-xs)',
+                            color: 'var(--text-secondary)',
+                            lineHeight: 1.6,
+                          }}
+                        >
+                          <strong style={{ color: 'var(--accent-primary-text)', display: 'block', marginBottom: '4px', fontSize: '11px', textTransform: 'uppercase' }}>
+                            Production Architecture Example:
+                          </strong>
+                          <span>{item.practicalExample}</span>
+                        </div>
+                      )}
+
+                      {/* Candidate Misconceptions */}
+                      {item.misconceptions && item.misconceptions.length > 0 && (
+                        <div
+                          id={`interview-misconceptions-${item.id}`}
+                          className={`audio-clickable-segment ${
+                            currentSegmentId === `${item.id}-misconception` ? 'audio-active-segment' : ''
+                          }`}
+                          onClick={() => audio.jumpToSegment(`${item.id}-misconception`)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-subtle)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '11px',
+                            color: 'var(--text-secondary)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <strong style={{ color: 'var(--accent-warning-text)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Common Candidate Misconceptions:
+                          </strong>
+                          <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {item.misconceptions.map((misc, mIdx) => (
+                              <li key={mIdx}>{misc}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Senior Interview Insight */}
+                      {item.interviewInsight && (
+                        <div
+                          id={`interview-insight-${item.id}`}
+                          className={`audio-clickable-segment ${
+                            currentSegmentId === `${item.id}-insight` ? 'audio-active-segment' : ''
+                          }`}
+                          onClick={() => audio.jumpToSegment(`${item.id}-insight`)}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--accent-purple-subtle)',
+                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                            fontSize: '11px',
+                            color: 'var(--accent-purple-text)',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '8px',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <Sparkles size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <div>
+                            <strong>Senior Framing Insight: </strong>
+                            <span>{item.interviewInsight}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Related Concepts Tags */}
+                      {item.relatedConcepts && item.relatedConcepts.length > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+                            Related:
+                          </span>
+                          {item.relatedConcepts.map((concept, cIdx) => (
+                            <span
+                              key={cIdx}
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)',
+                                backgroundColor: 'var(--bg-subtle)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '10px',
+                                color: 'var(--text-secondary)',
+                              }}
+                            >
+                              {concept}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Bottom Show Less Button when manually toggled in normal reading mode */}
+                      {!isPlayerOn && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '2px' }}>
+                          <button
+                            onClick={(e) => toggleKnowMore(item.id, e)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '3px 8px',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: 'var(--bg-subtle)',
+                              color: 'var(--text-muted)',
+                              fontSize: '10px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <ChevronUp size={10} />
+                            <span>Show Less</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ),
             };
           })}
           allowMultiple
         />
+      )}
+
+      {/* Floating Re-Anchor Follow Button (Appears if user manually scrolled away during playback) */}
+      {userHasScrolledAway && audio.playbackState === 'playing' && audio.currentSegment && (
+        <button
+          onClick={scrollToActiveSegment}
+          style={{
+            position: 'fixed',
+            bottom: '120px',
+            right: '24px',
+            zIndex: 950,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-full)',
+            backgroundColor: 'var(--accent-purple)',
+            color: '#ffffff',
+            border: 'none',
+            boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <Compass size={14} />
+          <span>↳ Follow Audio (Q#{audio.progressInfo.currentQuestionIndex + 1})</span>
+        </button>
       )}
 
       {/* Infinite Scroll Sentinel & Load More Fallback */}
@@ -659,6 +1226,54 @@ export const InterviewPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Floating Audio Coach Player Deck */}
+      <AudioCoachPlayer
+        playbackState={audio.playbackState}
+        currentSegment={audio.currentSegment}
+        currentQuestion={audio.currentQuestion}
+        progressInfo={audio.progressInfo}
+        settings={audio.settings}
+        onPlay={audio.play}
+        onPause={audio.pause}
+        onStop={audio.stop}
+        onNextQuestion={audio.nextQuestion}
+        onPrevQuestion={audio.prevQuestion}
+        onSeekRelative={audio.seekRelative}
+        onSeekToSegment={audio.seekToSegmentIndex}
+        onRateChange={audio.setRate}
+        onAutoFollowToggle={() => audio.setAutoFollow(!audio.settings.autoFollow)}
+        onToggleMinimize={() => audio.setIsMinimized(!audio.settings.isMinimized)}
+        onToggleTranscript={() => audio.setShowTranscript(!audio.settings.showTranscript)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Voice & Audio Settings Modal */}
+      <AudioSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={audio.settings}
+        availableVoices={audio.availableVoices}
+        onRateChange={audio.setRate}
+        onPitchChange={audio.setPitch}
+        onVoiceChange={audio.setVoiceURI}
+        onPauseModeChange={audio.setPauseMode}
+        onAutoFollowChange={audio.setAutoFollow}
+        onHighlightSentencesChange={audio.setHighlightSentences}
+        onShowScrubberThumbChange={audio.setShowScrubberThumb}
+        onPreviewVoice={audio.previewVoice}
+      />
+
+      {/* Real-Time Narration Transcript Drawer */}
+      <AudioTranscriptDrawer
+        isOpen={audio.settings.showTranscript && audio.playbackState !== 'idle'}
+        onClose={() => audio.setShowTranscript(false)}
+        question={audio.currentQuestion}
+        segments={transcriptSegments}
+        currentSegmentId={audio.currentSegment?.id || null}
+        isPlaying={audio.playbackState === 'playing'}
+        onJumpToSegment={audio.jumpToSegment}
+      />
     </div>
   );
 };
