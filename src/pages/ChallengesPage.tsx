@@ -41,6 +41,7 @@ const DIFFICULTY_BADGES: Record<string, BadgeProps['variant']> = {
 const STORAGE_KEY_ANSWERS = 'react_hooks_challenge_answers';
 const STORAGE_KEY_SUBMITTED = 'react_hooks_challenge_submitted';
 const STORAGE_KEY_REVEALED = 'react_hooks_challenge_revealed';
+const STORAGE_KEY_LAST_ATTEMPTED = 'react_hooks_challenge_last_attempted';
 const STORAGE_KEY_VIEW_MODE = 'react_hooks_challenge_view_mode';
 
 type ViewMode = 'focus' | 'accordion';
@@ -93,8 +94,28 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   const [selectedType, setSelectedType] = useState('All');
   const [revealedHints, setRevealedHints] = useState<Record<string, boolean>>({});
 
-  // Focus mode state
-  const [focusedIndex, setFocusedIndex] = useState(0);
+  // Focus mode state (restores last attempted question from localStorage or fallback to highest submitted)
+  const [focusedIndex, setFocusedIndex] = useState<number>(() => {
+    try {
+      const savedId = localStorage.getItem(STORAGE_KEY_LAST_ATTEMPTED);
+      if (savedId) {
+        const idx = CHALLENGES_LIST.findIndex((ch) => ch.id === savedId);
+        if (idx !== -1) return idx;
+      }
+      // Fallback: check existing saved submissions or answers to find the last attempted question
+      const savedSubmitted = JSON.parse(localStorage.getItem(STORAGE_KEY_SUBMITTED) || '{}');
+      const savedAnswers = JSON.parse(localStorage.getItem(STORAGE_KEY_ANSWERS) || '{}');
+      for (let i = CHALLENGES_LIST.length - 1; i >= 0; i--) {
+        const id = CHALLENGES_LIST[i].id;
+        if (savedSubmitted[id] || savedAnswers[id] !== undefined) {
+          return i;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return 0;
+  });
   const [tileFilter, setTileFilter] = useState<TileFilter>('all');
 
   // Focus View toggle (hides filters to show questions only)
@@ -109,8 +130,27 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   } | null>(null);
 
   // Accordion mode progressive infinite scrolling state
-  const [visibleCount, setVisibleCount] = useState(INITIAL_BATCH_SIZE);
-  const [activeAccordionId] = useState<string | undefined>();
+  const [visibleCount, setVisibleCount] = useState<number>(() => {
+    try {
+      const savedId = localStorage.getItem(STORAGE_KEY_LAST_ATTEMPTED);
+      if (savedId) {
+        const idx = CHALLENGES_LIST.findIndex((ch) => ch.id === savedId);
+        if (idx >= INITIAL_BATCH_SIZE) {
+          return idx + 5;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return INITIAL_BATCH_SIZE;
+  });
+  const [activeAccordionId] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_LAST_ATTEMPTED) || undefined;
+    } catch {
+      return undefined;
+    }
+  });
   const observerTargetRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
 
@@ -156,10 +196,20 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   const handleSelectOption = (challengeId: string, optionIdx: number) => {
     if (submitted[challengeId]) return;
     setSelectedAnswers((prev) => ({ ...prev, [challengeId]: optionIdx }));
+    try {
+      localStorage.setItem(STORAGE_KEY_LAST_ATTEMPTED, challengeId);
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   const handleSubmitAnswer = (challengeId: string) => {
     setSubmitted((prev) => ({ ...prev, [challengeId]: true }));
+    try {
+      localStorage.setItem(STORAGE_KEY_LAST_ATTEMPTED, challengeId);
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   const handleGiveUp = (challengeId: string) => {
@@ -243,6 +293,17 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   // Ensure focused index is bounded
   const safeFocusedIndex = Math.min(Math.max(0, focusedIndex), Math.max(0, filteredChallenges.length - 1));
   const activeChallenge = filteredChallenges[safeFocusedIndex];
+
+  // Sync active question to localStorage for seamless restoration across page reloads
+  useEffect(() => {
+    if (activeChallenge?.id) {
+      try {
+        localStorage.setItem(STORAGE_KEY_LAST_ATTEMPTED, activeChallenge.id);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, [activeChallenge?.id]);
 
   // Accordion infinite scroll slice
   const visibleChallenges = useMemo(() => {
@@ -857,6 +918,12 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                           setSelectedAnswers({});
                           setSubmitted({});
                           setRevealedAnswers({});
+                          setFocusedIndex(0);
+                          try {
+                            localStorage.removeItem(STORAGE_KEY_LAST_ATTEMPTED);
+                          } catch {
+                            // Ignore storage errors
+                          }
                         },
                       });
                     }}
