@@ -40,6 +40,7 @@ const DIFFICULTY_BADGES: Record<string, BadgeProps['variant']> = {
 
 const STORAGE_KEY_ANSWERS = 'react_hooks_challenge_answers';
 const STORAGE_KEY_SUBMITTED = 'react_hooks_challenge_submitted';
+const STORAGE_KEY_REVEALED = 'react_hooks_challenge_revealed';
 const STORAGE_KEY_VIEW_MODE = 'react_hooks_challenge_view_mode';
 
 type ViewMode = 'focus' | 'accordion';
@@ -72,6 +73,14 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   const [submitted, setSubmitted] = useState<Record<string, boolean>>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY_SUBMITTED) || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const [revealedAnswers, setRevealedAnswers] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY_REVEALED) || '{}');
     } catch {
       return {};
     }
@@ -136,6 +145,14 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
     }
   }, [submitted]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_REVEALED, JSON.stringify(revealedAnswers));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [revealedAnswers]);
+
   const handleSelectOption = (challengeId: string, optionIdx: number) => {
     if (submitted[challengeId]) return;
     setSelectedAnswers((prev) => ({ ...prev, [challengeId]: optionIdx }));
@@ -145,6 +162,18 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
     setSubmitted((prev) => ({ ...prev, [challengeId]: true }));
   };
 
+  const handleGiveUp = (challengeId: string) => {
+    setRevealedAnswers((prev) => ({ ...prev, [challengeId]: true }));
+  };
+
+  const handleHideAnswer = (challengeId: string) => {
+    setRevealedAnswers((prev) => {
+      const copy = { ...prev };
+      delete copy[challengeId];
+      return copy;
+    });
+  };
+
   const handleResetChallenge = (challengeId: string) => {
     setSelectedAnswers((prev) => {
       const copy = { ...prev };
@@ -152,6 +181,11 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
       return copy;
     });
     setSubmitted((prev) => {
+      const copy = { ...prev };
+      delete copy[challengeId];
+      return copy;
+    });
+    setRevealedAnswers((prev) => {
       const copy = { ...prev };
       delete copy[challengeId];
       return copy;
@@ -334,6 +368,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
     const userAnswer = selectedAnswers[challenge.id];
     const isSubmitted = submitted[challenge.id];
     const isCorrect = isSubmitted && userAnswer === challenge.correctOptionIndex;
+    const isRevealed = !!revealedAnswers[challenge.id];
     const showHint = revealedHints[challenge.id];
 
     return (
@@ -373,20 +408,36 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {challenge.options.map((option, optIdx) => {
               const isSelected = userAnswer === optIdx;
+              const isRightAnswer = optIdx === challenge.correctOptionIndex;
+              const shouldShowRightAnswer = isSubmitted && (isCorrect || isRevealed) && isRightAnswer;
+              const isWrongSelection = isSubmitted && isSelected && !isCorrect;
+
               let bgColor = 'var(--bg-surface-elevated)';
               let borderColor = 'var(--border-default)';
 
-              if (isSubmitted) {
-                if (optIdx === challenge.correctOptionIndex) {
-                  bgColor = 'var(--accent-success-subtle)';
-                  borderColor = 'var(--accent-success)';
-                } else if (isSelected && !isCorrect) {
-                  bgColor = 'var(--accent-danger-subtle)';
-                  borderColor = 'var(--accent-danger)';
-                }
+              if (shouldShowRightAnswer) {
+                bgColor = 'var(--accent-success-subtle)';
+                borderColor = 'var(--accent-success)';
+              } else if (isWrongSelection) {
+                bgColor = 'var(--accent-danger-subtle)';
+                borderColor = 'var(--accent-danger)';
               } else if (isSelected) {
                 borderColor = 'var(--accent-primary)';
                 bgColor = 'var(--accent-primary-subtle)';
+              }
+
+              let radioBorderColor = 'var(--border-strong)';
+              let radioDotColor: string | null = null;
+
+              if (shouldShowRightAnswer) {
+                radioBorderColor = 'var(--accent-success)';
+                radioDotColor = 'var(--accent-success)';
+              } else if (isWrongSelection) {
+                radioBorderColor = 'var(--accent-danger)';
+                radioDotColor = 'var(--accent-danger)';
+              } else if (isSelected) {
+                radioBorderColor = 'var(--accent-primary)';
+                radioDotColor = 'var(--accent-primary)';
               }
 
               return (
@@ -413,32 +464,48 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       width: '16px',
                       height: '16px',
                       borderRadius: '50%',
-                      border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-strong)'}`,
+                      border: `2px solid ${radioBorderColor}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}
                   >
-                    {isSelected && (
+                    {radioDotColor && (
                       <span
                         style={{
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          backgroundColor: 'var(--accent-primary)',
+                          backgroundColor: radioDotColor,
                         }}
                       />
                     )}
                   </span>
-                  <span>{option}</span>
+                  <span style={{ flex: 1 }}>{option}</span>
+                  {isSubmitted && !isCorrect && isRevealed && isRightAnswer && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--accent-success-text)',
+                        backgroundColor: 'var(--accent-success-subtle)',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      Correct Answer
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Hint Bar & Submit / Reset Actions */}
+        {/* Hint Bar & Submit / Reset / Give Up Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
@@ -467,7 +534,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {!isSubmitted ? (
               <Button
                 size="xs"
@@ -477,7 +544,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               >
                 Submit Answer
               </Button>
-            ) : (
+            ) : isCorrect ? (
               <Button
                 size="xs"
                 variant="ghost"
@@ -486,6 +553,36 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               >
                 Try Again
               </Button>
+            ) : (
+              <>
+                {!isRevealed ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    icon={<Eye size={12} />}
+                    onClick={() => handleGiveUp(challenge.id)}
+                  >
+                    Give Up & Show Answer
+                  </Button>
+                ) : (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon={<EyeOff size={12} />}
+                    onClick={() => handleHideAnswer(challenge.id)}
+                  >
+                    Hide Answer
+                  </Button>
+                )}
+                <Button
+                  size="xs"
+                  variant="primary"
+                  icon={<RotateCcw size={12} />}
+                  onClick={() => handleResetChallenge(challenge.id)}
+                >
+                  Try Again
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -496,8 +593,16 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
             style={{
               padding: 'var(--space-3) var(--space-4)',
               borderRadius: 'var(--radius-md)',
-              backgroundColor: isCorrect ? 'var(--accent-success-subtle)' : 'var(--accent-danger-subtle)',
-              border: isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(244, 63, 94, 0.3)',
+              backgroundColor: isCorrect
+                ? 'var(--accent-success-subtle)'
+                : isRevealed
+                ? 'rgba(168, 85, 247, 0.08)'
+                : 'var(--accent-danger-subtle)',
+              border: isCorrect
+                ? '1px solid rgba(16, 185, 129, 0.3)'
+                : isRevealed
+                ? '1px solid rgba(168, 85, 247, 0.3)'
+                : '1px solid rgba(244, 63, 94, 0.3)',
               fontSize: 'var(--text-xs)',
               color: 'var(--text-primary)',
               lineHeight: 1.55,
@@ -509,14 +614,30 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
           >
             {isCorrect ? (
               <CheckCircle2 size={16} style={{ color: 'var(--accent-success)', flexShrink: 0, marginTop: '2px' }} />
+            ) : isRevealed ? (
+              <Sparkles size={16} style={{ color: 'var(--accent-purple)', flexShrink: 0, marginTop: '2px' }} />
             ) : (
               <XCircle size={16} style={{ color: 'var(--accent-danger)', flexShrink: 0, marginTop: '2px' }} />
             )}
-            <div>
-              <strong style={{ color: isCorrect ? 'var(--accent-success-text)' : 'var(--accent-danger-text)' }}>
-                {isCorrect ? 'Correct! ' : 'Incorrect. '}
-              </strong>
-              <span>{challenge.explanation}</span>
+            <div style={{ flex: 1 }}>
+              {isCorrect ? (
+                <>
+                  <strong style={{ color: 'var(--accent-success-text)' }}>Correct! </strong>
+                  <span>{challenge.explanation}</span>
+                </>
+              ) : isRevealed ? (
+                <>
+                  <strong style={{ color: 'var(--accent-purple-text)' }}>Answer Revealed: </strong>
+                  <span>{challenge.explanation}</span>
+                </>
+              ) : (
+                <div>
+                  <strong style={{ color: 'var(--accent-danger-text)' }}>Incorrect. </strong>
+                  <span>
+                    That's not the right answer. Review the code snippet and try again, or click "Give Up & Show Answer" to reveal the solution.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -735,6 +856,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                         onConfirm: () => {
                           setSelectedAnswers({});
                           setSubmitted({});
+                          setRevealedAnswers({});
                         },
                       });
                     }}
@@ -1006,6 +1128,8 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       border: submitted[activeChallenge.id]
                         ? selectedAnswers[activeChallenge.id] === activeChallenge.correctOptionIndex
                           ? '1px solid rgba(16, 185, 129, 0.4)'
+                          : revealedAnswers[activeChallenge.id]
+                          ? '1px solid rgba(168, 85, 247, 0.4)'
                           : '1px solid rgba(244, 63, 94, 0.4)'
                         : undefined,
                     }}
@@ -1021,8 +1145,20 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                           {activeChallenge.difficulty}
                         </Badge>
                         {submitted[activeChallenge.id] && (
-                          <Badge variant={selectedAnswers[activeChallenge.id] === activeChallenge.correctOptionIndex ? 'success' : 'danger'}>
-                            {selectedAnswers[activeChallenge.id] === activeChallenge.correctOptionIndex ? 'Correct' : 'Incorrect'}
+                          <Badge
+                            variant={
+                              selectedAnswers[activeChallenge.id] === activeChallenge.correctOptionIndex
+                                ? 'success'
+                                : revealedAnswers[activeChallenge.id]
+                                ? 'purple'
+                                : 'danger'
+                            }
+                          >
+                            {selectedAnswers[activeChallenge.id] === activeChallenge.correctOptionIndex
+                              ? 'Correct'
+                              : revealedAnswers[activeChallenge.id]
+                              ? 'Revealed'
+                              : 'Incorrect'}
                           </Badge>
                         )}
                       </div>
@@ -1251,6 +1387,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               items={visibleChallenges.map((challenge) => {
                 const isSub = !!submitted[challenge.id];
                 const isCorr = isSub && selectedAnswers[challenge.id] === challenge.correctOptionIndex;
+                const isRev = !isCorr && !!revealedAnswers[challenge.id];
                 const diffVariant = DIFFICULTY_BADGES[challenge.difficulty] || 'default';
 
                 return {
@@ -1282,8 +1419,8 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
 
                       <div>
                         {isSub ? (
-                          <Badge variant={isCorr ? 'success' : 'danger'}>
-                            {isCorr ? 'Correct' : 'Incorrect'}
+                          <Badge variant={isCorr ? 'success' : isRev ? 'purple' : 'danger'}>
+                            {isCorr ? 'Correct' : isRev ? 'Revealed' : 'Incorrect'}
                           </Badge>
                         ) : (
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
