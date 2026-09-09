@@ -153,6 +153,21 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   });
   const observerTargetRef = useRef<HTMLDivElement>(null);
   const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 640 : false
+  );
+  const [isNarrow, setIsNarrow] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 960 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+      setIsNarrow(window.innerWidth < 960);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const scrollCategories = (dir: 'left' | 'right') => {
     categoryScrollRef.current?.scrollBy({
@@ -433,13 +448,13 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
     const showHint = revealedHints[challenge.id];
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', minWidth: 0 }}>
         {/* Title & Question */}
         <div>
-          <h3 style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          <h3 style={{ fontSize: 'clamp(var(--text-sm), 2.5vw, var(--text-md))', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             {challenge.title}
           </h3>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.55 }}>
+          <p style={{ fontSize: 'clamp(12px, 2vw, var(--text-sm))', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.55 }}>
             {challenge.question}
           </p>
         </div>
@@ -449,13 +464,15 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
           <pre
             style={{
               margin: 0,
-              padding: '12px 14px',
+              padding: isMobile ? '10px 12px' : '12px 14px',
               backgroundColor: 'var(--bg-code)',
               borderRadius: 'var(--radius-md)',
               fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--text-xs)',
+              fontSize: 'clamp(10.5px, 2vw, var(--text-xs))',
               lineHeight: 1.55,
               overflowX: 'auto',
+              maxWidth: '100%',
+              WebkitOverflowScrolling: 'touch',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-subtle)',
             }}
@@ -506,15 +523,16 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                   key={optIdx}
                   onClick={() => handleSelectOption(challenge.id, optIdx)}
                   style={{
-                    padding: '10px 14px',
+                    padding: isMobile ? '8px 10px' : '10px 14px',
                     borderRadius: 'var(--radius-md)',
                     backgroundColor: bgColor,
                     border: `1px solid ${borderColor}`,
                     cursor: isSubmitted ? 'default' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    fontSize: 'var(--text-xs)',
+                    flexWrap: isMobile ? 'wrap' : 'nowrap',
+                    gap: isMobile ? '8px' : '10px',
+                    fontSize: 'clamp(11.5px, 2vw, var(--text-xs))',
                     color: 'var(--text-primary)',
                     lineHeight: 1.45,
                     transition: 'all var(--transition-fast)',
@@ -543,11 +561,11 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       />
                     )}
                   </span>
-                  <span style={{ flex: 1 }}>{option}</span>
+                  <span style={{ flex: '1 1 auto', minWidth: '180px' }}>{option}</span>
                   {isSubmitted && !isCorrect && isRevealed && isRightAnswer && (
                     <span
                       style={{
-                        fontSize: '10px',
+                        fontSize: '9.5px',
                         fontWeight: 700,
                         color: 'var(--accent-success-text)',
                         backgroundColor: 'var(--accent-success-subtle)',
@@ -555,6 +573,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                         borderRadius: 'var(--radius-full)',
                         border: '1px solid rgba(16, 185, 129, 0.3)',
                         letterSpacing: '0.02em',
+                        flexShrink: 0,
                       }}
                     >
                       Correct Answer
@@ -568,7 +587,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
 
         {/* Hint Bar & Submit / Reset / Give Up Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
               onClick={() => toggleHint(challenge.id)}
               style={{
@@ -589,7 +608,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
             </button>
 
             {showHint && (
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontStyle: 'italic', wordBreak: 'break-word' }}>
                 "{challenge.hint}"
               </span>
             )}
@@ -731,13 +750,13 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
   return (
     <div
       style={{
-        padding: 'var(--space-6) var(--space-8)',
+        padding: 'var(--space-4) clamp(12px, 3.5vw, var(--space-8))',
         maxWidth: '1200px',
         margin: '0 auto',
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: 'var(--space-6)',
+        gap: isMobile ? 'var(--space-4)' : 'var(--space-6)',
       }}
       className="challenges-page"
     >
@@ -755,29 +774,30 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent-primary)',
+                flexShrink: 0,
               }}
             >
               <Trophy size={22} />
             </div>
             <div>
-              <h1 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              <h1 style={{ fontSize: 'clamp(var(--text-lg), 4vw, var(--text-2xl))', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 Interactive React Hooks Challenges
               </h1>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+              <p style={{ fontSize: 'clamp(12px, 2.5vw, var(--text-sm))', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
                 Test your understanding of render snapshots, closure traps, effect dependencies, and optimization hooks.
               </p>
             </div>
           </div>
 
           {/* Action Row: View Switcher & Challenge Mode on Far Right */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '14px', flexWrap: 'wrap', marginLeft: isMobile ? '0' : 'auto' }}>
             {/* View Mode Segmented Control */}
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 backgroundColor: 'var(--bg-subtle)',
-                padding: '3px',
+                padding: '2px',
                 borderRadius: 'var(--radius-full)',
                 border: '1px solid var(--border-subtle)',
                 height: '32px',
@@ -789,8 +809,8 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px',
+                  gap: '4px',
+                  padding: isMobile ? '0 8px' : '0 12px',
                   height: '24px',
                   borderRadius: 'var(--radius-full)',
                   border: 'none',
@@ -804,7 +824,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                 }}
               >
                 <Crosshair size={13} />
-                <span>Interactive View</span>
+                <span>{isMobile ? 'Interactive' : 'Interactive View'}</span>
               </button>
 
               <button
@@ -812,8 +832,8 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  padding: '0 12px',
+                  gap: '4px',
+                  padding: isMobile ? '0 8px' : '0 12px',
                   height: '24px',
                   borderRadius: 'var(--radius-full)',
                   border: 'none',
@@ -827,7 +847,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                 }}
               >
                 <List size={13} />
-                <span>Accordion View</span>
+                <span>{isMobile ? 'Accordion' : 'Accordion View'}</span>
               </button>
             </div>
 
@@ -838,9 +858,9 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '5px',
                 height: '32px',
-                padding: '0 12px',
+                padding: isMobile ? '0 8px' : '0 12px',
                 borderRadius: 'var(--radius-full)',
                 border: `1px solid ${isFocusViewActive ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
                 backgroundColor: isFocusViewActive ? 'var(--accent-primary-subtle)' : 'var(--bg-subtle)',
@@ -854,7 +874,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               }}
             >
               {isFocusViewActive ? <EyeOff size={13} /> : <Eye size={13} />}
-              <span>Focus View</span>
+              <span>{isMobile ? 'Focus' : 'Focus View'}</span>
             </button>
           </div>
         </div>
@@ -863,15 +883,15 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
         {!isFocusViewActive && (
           <Card variant="glass" padding="md" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <CheckCircle2 size={16} style={{ color: 'var(--accent-success)' }} />
+                  <CheckCircle2 size={15} style={{ color: 'var(--accent-success)', flexShrink: 0 }} />
                   <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-primary)' }}>
                     Progress: {stats.submittedCount} / {CHALLENGES_LIST.length} completed ({stats.progressPercent}%)
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={15} style={{ color: 'var(--accent-purple)' }} />
+                  <Sparkles size={14} style={{ color: 'var(--accent-purple)', flexShrink: 0 }} />
                   <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
                     Accuracy: {stats.correctCount} correct ({stats.accuracy}%)
                   </span>
@@ -964,8 +984,8 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
           }}
         >
           {/* Row 1: Search & Difficulty Level */}
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ flex: '1 1 320px', minWidth: '240px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ flex: '1 1 260px', width: '100%', minWidth: 0 }}>
               <SearchInput
                 value={search}
                 onChange={handleSearchChange}
@@ -974,19 +994,23 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
             </div>
 
             {/* Difficulty Segmented Group */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', maxWidth: '100%' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Level:
               </span>
               <div
+                className="no-scrollbar"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   backgroundColor: 'var(--bg-subtle)',
-                  padding: '3px',
+                  padding: '2px',
                   borderRadius: 'var(--radius-full)',
                   border: '1px solid var(--border-subtle)',
                   gap: '2px',
+                  overflowX: 'auto',
+                  maxWidth: '100%',
+                  WebkitOverflowScrolling: 'touch',
                 }}
               >
                 {['All', 'Beginner', 'Intermediate', 'Advanced', 'Expert'].map((diff) => {
@@ -996,15 +1020,16 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       key={diff}
                       onClick={() => handleDifficultyChange(diff)}
                       style={{
-                        padding: '4px 10px',
+                        padding: isMobile ? '3px 8px' : '4px 10px',
                         borderRadius: 'var(--radius-full)',
-                        fontSize: 'var(--text-xs)',
+                        fontSize: isMobile ? '11px' : 'var(--text-xs)',
                         fontWeight: isActive ? 700 : 500,
                         border: 'none',
                         backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
                         color: isActive ? '#ffffff' : 'var(--text-secondary)',
                         cursor: 'pointer',
                         transition: 'all var(--transition-fast)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {diff}
@@ -1071,10 +1096,12 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '6px',
                 overflowX: 'auto',
                 padding: '4px 2px',
                 scrollBehavior: 'smooth',
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
               }}
             >
               {CHALLENGE_CATEGORIES.map((cat) => {
@@ -1088,10 +1115,10 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 14px',
+                      gap: '5px',
+                      padding: isMobile ? '4px 10px' : '6px 14px',
                       borderRadius: 'var(--radius-full)',
-                      fontSize: 'var(--text-xs)',
+                      fontSize: isMobile ? '11px' : 'var(--text-xs)',
                       fontWeight: isSelected ? 700 : 500,
                       whiteSpace: 'nowrap',
                       border: '1px solid',
@@ -1101,13 +1128,14 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       opacity: count === 0 ? 0.45 : 1,
                       cursor: 'pointer',
                       transition: 'all var(--transition-fast)',
+                      flexShrink: 0,
                     }}
                   >
                     <span>{cat}</span>
                     <span
                       style={{
-                        fontSize: '10px',
-                        padding: '1px 6px',
+                        fontSize: '9.5px',
+                        padding: '1px 5px',
                         borderRadius: '8px',
                         backgroundColor: isSelected ? 'rgba(139, 92, 246, 0.25)' : 'var(--bg-subtle)',
                         color: isSelected ? 'var(--accent-purple-text)' : 'var(--text-muted)',
@@ -1169,7 +1197,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
 
       {/* VIEW 1: INTERACTIVE VIEW (Split Screen: Single Question Left + Question Number Tiles Right) */}
       {viewMode === 'focus' && (
-        <div style={{ display: 'flex', gap: 'var(--space-6)', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: isNarrow ? 'var(--space-4)' : 'var(--space-6)', alignItems: 'flex-start', flexWrap: 'wrap', width: '100%', minWidth: 0 }}>
           {filteredChallenges.length === 0 ? (
             <Card variant="default" padding="lg" style={{ textAlign: 'center', padding: 'var(--space-8)', width: '100%' }}>
               <HelpCircle size={32} style={{ color: 'var(--text-muted)', margin: '0 auto 8px auto' }} />
@@ -1183,7 +1211,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
           ) : (
             <>
               {/* Left Panel: Focused Single Challenge Card */}
-              <div style={{ flex: '1 1 560px', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ flex: isNarrow ? '1 1 100%' : '1 1 560px', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {activeChallenge && (
                   <Card
                     variant="elevated"
@@ -1203,7 +1231,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                   >
                     {/* Header Row */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-primary-text)' }}>
                           Question {safeFocusedIndex + 1} of {filteredChallenges.length}
                         </span>
@@ -1244,9 +1272,10 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     backgroundColor: 'var(--bg-surface)',
-                    padding: '10px 16px',
+                    padding: isMobile ? '8px 12px' : '10px 16px',
                     borderRadius: 'var(--radius-lg)',
                     border: '1px solid var(--border-subtle)',
+                    gap: '6px',
                   }}
                 >
                   <Button
@@ -1259,10 +1288,10 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                   >
-                    Previous Question
+                    {isMobile ? 'Prev' : 'Previous Question'}
                   </Button>
 
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: 'clamp(10px, 2vw, var(--text-xs))', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     #{activeChallenge?.id.replace('ch-', '')} ({safeFocusedIndex + 1}/{filteredChallenges.length})
                   </span>
 
@@ -1275,7 +1304,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                   >
-                    Next Question <ChevronRight size={14} style={{ marginLeft: '4px' }} />
+                    {isMobile ? 'Next' : 'Next Question'} <ChevronRight size={14} style={{ marginLeft: '2px' }} />
                   </Button>
                 </div>
               </div>
@@ -1283,11 +1312,13 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               {/* Right Panel: Question Number Tiles Navigator Sidebar */}
               <div
                 style={{
-                  flex: '0 0 320px',
+                  flex: isNarrow ? '1 1 100%' : '0 0 320px',
+                  width: '100%',
+                  minWidth: 0,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px',
-                  position: 'sticky',
+                  position: isNarrow ? 'static' : 'sticky',
                   top: '20px',
                 }}
               >
@@ -1334,9 +1365,9 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(36px, 1fr))',
-                      gap: '6px',
-                      maxHeight: '440px',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))',
+                      gap: '5px',
+                      maxHeight: isNarrow ? '240px' : '440px',
                       overflowY: 'auto',
                       padding: '4px 2px',
                       scrollbarWidth: 'thin',

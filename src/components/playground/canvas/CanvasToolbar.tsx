@@ -21,6 +21,8 @@ import {
   Laptop,
   Tablet,
   Smartphone,
+  Plus,
+  Sliders,
 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import { Tabs } from '../../ui/Tabs';
@@ -53,6 +55,10 @@ export interface CanvasToolbarProps {
   onToggleRightPanel?: () => void;
   nodes?: PlaygroundNode[];
   onReorderUINodes?: (orderedIds: string[]) => void;
+  isMobile?: boolean;
+  onOpenMobilePalette?: () => void;
+  onOpenMobileInspector?: () => void;
+  selectedNodeId?: string | null;
 }
 
 export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
@@ -77,6 +83,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onToggleRightPanel,
   nodes,
   onReorderUINodes,
+  isMobile = false,
+  onOpenMobilePalette,
+  onOpenMobileInspector,
+  selectedNodeId,
 }) => {
   // Custom Dropdown State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -143,10 +153,10 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <Tabs
           items={[
-            { id: PlaygroundView.BUILDER, label: t('playground.toolbar.visualBuilderTab'), icon: <LayoutGrid size={14} /> },
+            { id: PlaygroundView.BUILDER, label: isMobile ? 'Builder' : t('playground.toolbar.visualBuilderTab'), icon: <LayoutGrid size={14} /> },
             {
               id: PlaygroundView.PREVIEW,
-              label: t('playground.toolbar.livePreviewTab'),
+              label: isMobile ? 'Preview' : t('playground.toolbar.livePreviewTab'),
               icon: (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span
@@ -164,16 +174,40 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
             },
             {
               id: PlaygroundView.LAYOUT,
-              label: 'Layout & Flex Studio',
+              label: isMobile ? 'Layout' : 'Layout & Flex Studio',
               icon: <Layers size={14} style={{ color: 'var(--accent-primary)' }} />,
             },
-            { id: PlaygroundView.CODE, label: t('playground.toolbar.generatedCodeTab'), icon: <Code2 size={14} /> },
+            { id: PlaygroundView.CODE, label: isMobile ? 'Code' : t('playground.toolbar.generatedCodeTab'), icon: <Code2 size={14} /> },
           ]}
           activeId={activeView === PlaygroundView.CANVAS ? PlaygroundView.BUILDER : activeView}
           onChange={(id) => onViewChange(id as any)}
           variant="pills"
           size="sm"
         />
+
+        {/* Mobile quick action buttons for Builder mode */}
+        {isMobile && (activeView === 'builder' || activeView === 'canvas') && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Button
+              size="xs"
+              variant="secondary"
+              icon={<Plus size={12} />}
+              onClick={onOpenMobilePalette}
+              title="Add Component from Palette"
+            >
+              Add
+            </Button>
+            <Button
+              size="xs"
+              variant={selectedNodeId ? 'primary' : 'ghost'}
+              icon={<Sliders size={12} />}
+              onClick={onOpenMobileInspector}
+              title="Open Inspector"
+            >
+              Inspect
+            </Button>
+          </div>
+        )}
 
         {/* Responsive Device Viewport Switcher when in Preview or Layout */}
         {(activeView === 'preview' || activeView === 'layout') && (
@@ -303,6 +337,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
         <Tooltip content="Open Layout & Flex Studio to structure rows, columns, and flexbox containers" placement="bottom">
           <button
             type="button"
+            className="hide-mobile"
             onClick={() => onViewChange('layout')}
             style={{
               display: 'flex',
@@ -369,7 +404,8 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
                 right: 0,
-                width: '360px',
+                width: 'min(360px, calc(100vw - 24px))',
+                maxWidth: 'calc(100vw - 24px)',
                 maxHeight: '480px',
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
@@ -555,12 +591,12 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
 
         <Tooltip content={t('playground.toolbar.saveTooltip')} placement="bottom">
           <Button size="xs" variant="secondary" icon={<Save size={13} />} onClick={onSave}>
-            {t('common.save')}
+            <span className="hide-mobile">{t('common.save')}</span>
           </Button>
         </Tooltip>
         <Tooltip content={t('playground.toolbar.resetTooltip')} placement="bottom">
           <Button size="xs" variant="ghost" icon={<RotateCcw size={13} />} onClick={onReset}>
-            {t('common.reset')}
+            <span className="hide-mobile">{t('common.reset')}</span>
           </Button>
         </Tooltip>
       </div>

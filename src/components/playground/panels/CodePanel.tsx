@@ -80,8 +80,8 @@ export const CodePanel: React.FC<CodePanelProps> = ({
         flexDirection: 'column',
         height: '100%',
         backgroundColor: 'var(--bg-app)',
-        padding: 'var(--space-4)',
-        gap: 'var(--space-3)',
+        padding: 'clamp(8px, 2vw, var(--space-4))',
+        gap: 'clamp(6px, 1.5vw, var(--space-3))',
       }}
       className="code-panel"
     >
@@ -93,17 +93,17 @@ export const CodePanel: React.FC<CodePanelProps> = ({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '8px',
-          padding: '8px 14px',
+          padding: '8px 12px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
         }}
       >
         {/* Left: Title & Style Format Switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Code2 size={16} style={{ color: 'var(--accent-primary)' }} />
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-primary)' }} className="hide-mobile">
               {t('playground.code.title')}
             </span>
           </div>
@@ -117,6 +117,8 @@ export const CodePanel: React.FC<CodePanelProps> = ({
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
               gap: '2px',
+              overflowX: 'auto',
+              maxWidth: '100%',
             }}
           >
             <button
@@ -125,8 +127,8 @@ export const CodePanel: React.FC<CodePanelProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
+                gap: '4px',
+                padding: '4px 8px',
                 borderRadius: 'var(--radius-xs)',
                 border: 'none',
                 backgroundColor: styleFormat === 'tailwind' ? 'var(--accent-primary)' : 'transparent',
@@ -135,10 +137,11 @@ export const CodePanel: React.FC<CodePanelProps> = ({
                 fontWeight: styleFormat === 'tailwind' ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
+                whiteSpace: 'nowrap',
               }}
             >
               <Sparkles size={12} />
-              <span>Tailwind CSS</span>
+              <span>Tailwind<span className="hide-mobile"> CSS</span></span>
             </button>
 
             <button
@@ -147,8 +150,8 @@ export const CodePanel: React.FC<CodePanelProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
+                gap: '4px',
+                padding: '4px 8px',
                 borderRadius: 'var(--radius-xs)',
                 border: 'none',
                 backgroundColor: styleFormat === 'scss' ? 'var(--accent-primary)' : 'transparent',
@@ -157,10 +160,11 @@ export const CodePanel: React.FC<CodePanelProps> = ({
                 fontWeight: styleFormat === 'scss' ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
+                whiteSpace: 'nowrap',
               }}
             >
               <Palette size={12} />
-              <span>SCSS Modules</span>
+              <span>SCSS<span className="hide-mobile"> Modules</span></span>
             </button>
 
             <button
@@ -169,8 +173,8 @@ export const CodePanel: React.FC<CodePanelProps> = ({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
+                gap: '4px',
+                padding: '4px 8px',
                 borderRadius: 'var(--radius-xs)',
                 border: 'none',
                 backgroundColor: styleFormat === 'inline' ? 'var(--accent-primary)' : 'transparent',
@@ -179,17 +183,18 @@ export const CodePanel: React.FC<CodePanelProps> = ({
                 fontWeight: styleFormat === 'inline' ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
+                whiteSpace: 'nowrap',
               }}
             >
               <FileCode size={12} />
-              <span>Inline Styles</span>
+              <span>Inline<span className="hide-mobile"> Styles</span></span>
             </button>
           </div>
         </div>
 
         {/* Right: Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }} className="hide-mobile">
             {lineCount} lines • {activeFileName}
           </span>
 
@@ -276,10 +281,10 @@ export const CodePanel: React.FC<CodePanelProps> = ({
           backgroundColor: 'var(--bg-code)',
           border: '1px solid var(--border-default)',
           borderRadius: 'var(--radius-lg)',
-          padding: 'var(--space-4)',
+          padding: 'clamp(10px, 2vw, var(--space-4))',
           overflow: 'auto',
           fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--text-sm)',
+          fontSize: 'clamp(11px, 1.8vw, var(--text-sm))',
           lineHeight: 1.6,
           color: 'var(--text-primary)',
           boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.2)',

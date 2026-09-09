@@ -109,14 +109,48 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
 
     let touchStartDist = 0;
     let touchStartZoom = 1;
+    let isTouchPanning = false;
+    let touchPanStart = { x: 0, y: 0 };
+    let activeTouchNode: {
+      nodeId: string;
+      startX: number;
+      startY: number;
+      initialX: number;
+      initialY: number;
+      hasMoved: boolean;
+    } | null = null;
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
+        isTouchPanning = false;
+        activeTouchNode = null;
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         touchStartDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         touchStartZoom = zoomRef.current;
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const target = touch.target as HTMLElement | null;
+        const nodeEl = target?.closest('[data-node-id]') as HTMLElement | null;
+        const nodeId = nodeEl?.getAttribute('data-node-id');
+
+        if (nodeId) {
+          const targetNode = nodes.find((n) => n.id === nodeId);
+          if (targetNode) {
+            activeTouchNode = {
+              nodeId,
+              startX: touch.clientX,
+              startY: touch.clientY,
+              initialX: targetNode.position.x,
+              initialY: targetNode.position.y,
+              hasMoved: false,
+            };
+          }
+        } else {
+          isTouchPanning = true;
+          touchPanStart = { x: touch.clientX - pan.x, y: touch.clientY - pan.y };
+        }
       }
     };
 
@@ -131,10 +165,39 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
           const nextZoom = Math.min(2.5, Math.max(0.3, touchStartZoom * ratio));
           onZoomChange?.(Math.round(nextZoom * 100) / 100);
         }
+      } else if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        if (activeTouchNode) {
+          e.preventDefault();
+          const dx = (touch.clientX - activeTouchNode.startX) / zoomRef.current;
+          const dy = (touch.clientY - activeTouchNode.startY) / zoomRef.current;
+          if (Math.hypot(dx, dy) > 3 || activeTouchNode.hasMoved) {
+            activeTouchNode.hasMoved = true;
+            const newX = Math.round(activeTouchNode.initialX + dx);
+            const newY = Math.round(activeTouchNode.initialY + dy);
+            onMoveNode(activeTouchNode.nodeId, {
+              x: Math.max(10, newX),
+              y: Math.max(10, newY),
+            });
+          }
+        } else if (isTouchPanning) {
+          e.preventDefault();
+          setPan({
+            x: touch.clientX - touchPanStart.x,
+            y: touch.clientY - touchPanStart.y,
+          });
+        }
       }
     };
 
     const handleTouchEnd = () => {
+      if (activeTouchNode) {
+        if (!activeTouchNode.hasMoved) {
+          onSelectNode(activeTouchNode.nodeId);
+        }
+        activeTouchNode = null;
+      }
+      isTouchPanning = false;
       touchStartDist = 0;
     };
 
@@ -149,7 +212,7 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [onZoomChange]);
+  }, [pan.x, pan.y, nodes, onMoveNode, onSelectNode, onZoomChange]);
 
   // Dedicated Drag Controller using ref to prevent runaway dragging
   const activeDragRef = useRef<{
@@ -365,14 +428,85 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '450px',
+        minHeight: '100%',
         overflow: 'hidden',
         cursor: isPanning ? 'grabbing' : 'default',
         backgroundColor: 'var(--workbench-bg)',
         userSelect: 'none',
+        touchAction: 'none',
       }}
-      className="visual-builder-viewport workbench-bg"
+      className="visual-builder-viewport workbench-bg workbench-touch-area"
     >
+      {/* Quick Floating Zoom Controls for Mobile / Touch Viewport */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          zIndex: 35,
+          display: 'flex',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-md)',
+          padding: '2px',
+          gap: '2px',
+          boxShadow: 'var(--shadow-md)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => onZoomChange?.(Math.max(0.4, Math.round((zoom - 0.1) * 10) / 10))}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            padding: '4px 7px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderRadius: 'var(--radius-xs)',
+          }}
+          title="Zoom Out"
+        >
+          -
+        </button>
+        <button
+          type="button"
+          onClick={() => onZoomChange?.(0.8)}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '10.5px',
+            fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
+            padding: '2px 4px',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+          }}
+          title="Reset Zoom to 80%"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={() => onZoomChange?.(Math.min(2, Math.round((zoom + 0.1) * 10) / 10))}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            padding: '4px 7px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderRadius: 'var(--radius-xs)',
+          }}
+          title="Zoom In"
+        >
+          +
+        </button>
+      </div>
       {/* Workbench Background SVG Grid with Light Opaque Square Markings */}
       <svg
         style={{
@@ -538,35 +672,37 @@ export const VisualCanvas: React.FC<VisualCanvasProps> = ({
               const parentNode = node.parentId ? nodes.find((n) => n.id === node.parentId) : undefined;
               const childNodes = nodes.filter((n) => n.parentId === node.id);
               return (
-                <UIComponentNode
-                  key={node.id}
-                  node={node}
-                  isSelected={isSelected}
-                  isExecuting={isExecuting}
-                  isDropTarget={node.id === canvasDropTargetId}
-                  parentLabel={parentNode ? parentNode.props.content || parentNode.label || parentNode.subtype : undefined}
-                  childNodes={childNodes}
-                  onNodeMouseDown={handleNodeMouseDown}
-                  onPortClick={handlePortClick}
-                  resolvedProps={{
-                    content: resolvedValues[node.id] ?? node.props.content,
-                  }}
-                  onResize={handleNodeResize}
-                  onUpdateProps={onUpdateProps}
-                />
+                <div key={node.id} data-node-id={node.id} style={{ display: 'contents' }}>
+                  <UIComponentNode
+                    node={node}
+                    isSelected={isSelected}
+                    isExecuting={isExecuting}
+                    isDropTarget={node.id === canvasDropTargetId}
+                    parentLabel={parentNode ? parentNode.props.content || parentNode.label || parentNode.subtype : undefined}
+                    childNodes={childNodes}
+                    onNodeMouseDown={handleNodeMouseDown}
+                    onPortClick={handlePortClick}
+                    resolvedProps={{
+                      content: resolvedValues[node.id] ?? node.props.content,
+                    }}
+                    onResize={handleNodeResize}
+                    onUpdateProps={onUpdateProps}
+                  />
+                </div>
               );
             } else {
               return (
-                <LogicHookNode
-                  key={node.id}
-                  node={node}
-                  isSelected={isSelected}
-                  isExecuting={isExecuting}
-                  onNodeMouseDown={handleNodeMouseDown}
-                  onPortClick={handlePortClick}
-                  resolvedValue={resolvedValues[node.id]}
-                  onResize={handleNodeResize}
-                />
+                <div key={node.id} data-node-id={node.id} style={{ display: 'contents' }}>
+                  <LogicHookNode
+                    node={node}
+                    isSelected={isSelected}
+                    isExecuting={isExecuting}
+                    onNodeMouseDown={handleNodeMouseDown}
+                    onPortClick={handlePortClick}
+                    resolvedValue={resolvedValues[node.id]}
+                    onResize={handleNodeResize}
+                  />
+                </div>
               );
             }
           })}

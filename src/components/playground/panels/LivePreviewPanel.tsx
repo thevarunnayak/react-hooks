@@ -172,6 +172,23 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
   const [isDraggingTrace, setIsDraggingTrace] = useState<boolean>(false);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
+  // Responsive mobile state for trace dock
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const effectiveTracePosition = isMobile ? 'bottom' : tracePosition;
+  const effectiveTraceHeight = isMobile ? Math.min(traceHeight, 180) : traceHeight;
+
   // Drag resizing handler for Execution Trace split
   useEffect(() => {
     if (!isDraggingTrace) return;
@@ -180,7 +197,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
       if (!splitContainerRef.current) return;
       const rect = splitContainerRef.current.getBoundingClientRect();
 
-      if (tracePosition === 'bottom') {
+      if (effectiveTracePosition === 'bottom') {
         const newHeight = rect.bottom - e.clientY;
         const maxHeight = Math.max(140, rect.height - 120);
         setTraceHeight(Math.max(90, Math.min(newHeight, maxHeight)));
@@ -201,7 +218,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDraggingTrace, tracePosition]);
+  }, [isDraggingTrace, effectiveTracePosition]);
 
   const onTraceActionRef = useRef(onTraceAction);
   useEffect(() => {
@@ -5275,9 +5292,10 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {/* Position Selector (Bottom or Right) */}
+          {/* Dock Position Switcher */}
           {isTracing && (
             <div
+              className="hide-mobile"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -5357,11 +5375,11 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
           minHeight: 0,
           minWidth: 0,
           display: 'flex',
-          flexDirection: tracePosition === 'right' ? 'row' : 'column',
+          flexDirection: effectiveTracePosition === 'right' ? 'row' : 'column',
           gap: 0,
           position: 'relative',
           userSelect: isDraggingTrace ? 'none' : 'auto',
-          cursor: isDraggingTrace ? (tracePosition === 'right' ? 'col-resize' : 'row-resize') : 'default',
+          cursor: isDraggingTrace ? (effectiveTracePosition === 'right' ? 'col-resize' : 'row-resize') : 'default',
         }}
       >
         {/* Rendered Application Sandbox */}
@@ -5370,7 +5388,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
             flex: 1,
             minHeight: 0,
             minWidth: 0,
-            padding: 'var(--space-6)',
+            padding: 'clamp(10px, 2.5vw, 24px)',
             backgroundColor: 'var(--bg-surface-elevated)',
             border: '1px solid var(--border-default)',
             borderRadius: 'var(--radius-xl)',
@@ -5391,11 +5409,11 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                 width: '100%',
                 maxWidth:
                   activeDevice === 'mobile'
-                    ? '375px'
+                    ? 'min(375px, 100%)'
                     : activeDevice === 'tablet'
-                    ? '768px'
+                    ? 'min(768px, 100%)'
                     : activeDevice === 'laptop'
-                    ? '1024px'
+                    ? 'min(1024px, 100%)'
                     : '100%',
                 display: 'flex',
                 flexDirection: 'column',
@@ -5533,7 +5551,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                 position: 'relative',
                 zIndex: 10,
                 flexShrink: 0,
-                ...(tracePosition === 'bottom'
+                ...(effectiveTracePosition === 'bottom'
                   ? {
                       height: '14px',
                       width: '100%',
@@ -5549,7 +5567,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
               }}
               title="Drag to resize Execution Trace"
             >
-              {tracePosition === 'bottom' ? (
+              {effectiveTracePosition === 'bottom' ? (
                 <div
                   style={{
                     width: '48px',
@@ -5583,9 +5601,9 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
-                ...(tracePosition === 'bottom'
+                ...(effectiveTracePosition === 'bottom'
                   ? {
-                      height: `${traceHeight}px`,
+                      height: `${effectiveTraceHeight}px`,
                       width: '100%',
                     }
                   : {
@@ -5658,7 +5676,7 @@ export const LivePreviewPanel: React.FC<LivePreviewPanelProps> = ({
                     </button>
                   )}
                   <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    {tracePosition === 'bottom' ? `${traceHeight}px` : `${traceWidth}px`}
+                    {effectiveTracePosition === 'bottom' ? `${effectiveTraceHeight}px` : `${traceWidth}px`}
                   </span>
                 </div>
               </div>

@@ -23,6 +23,8 @@ import { DUMMY_DATA_PRESETS } from '../constants/dummyDataPresets';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import { usePopupAlert } from '../hooks/usePopupAlert';
 import { CustomPopupAlert } from '../components/ui/CustomPopupAlert';
+import { Drawer } from '../components/ui/Drawer';
+import { Plus, Settings } from 'lucide-react';
 import { STORAGE_KEYS } from '../constants/storageKeys';
 import { AlertVariant } from '../constants/enums';
 import { t } from '../i18n/i18n';
@@ -187,8 +189,36 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
   const [activeView, setActiveView] = useState<'builder' | 'canvas' | 'code' | 'preview' | 'layout'>(initialView);
   const [activeDevice, setActiveDevice] = useState<DeviceViewportType>('desktop');
   const [zoom, setZoom] = useState<number>(0.8);
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState<boolean>(false);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth <= 1024;
+    return false;
+  });
+  const [isRightCollapsed, setIsRightCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth <= 1024;
+    return false;
+  });
+
+  // Responsive mobile state & slide-over drawer controls
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+  const [mobilePaletteOpen, setMobilePaletteOpen] = useState<boolean>(false);
+  const [mobileInspectorOpen, setMobileInspectorOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (window.innerWidth <= 1024) {
+        setIsLeftCollapsed(true);
+        setIsRightCollapsed(true);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Undo / Redo history stacks
   const [history, setHistory] = useState<{ nodes: PlaygroundNode[]; connections: PlaygroundConnection[] }[]>([]);
@@ -923,10 +953,11 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
 
   return (
     <div
+      id="playground"
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 56px)',
+        height: 'calc(100dvh - 56px)',
         overflow: 'hidden',
       }}
       className="playground-page"
@@ -954,13 +985,17 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
         onToggleRightPanel={() => setIsRightCollapsed(!isRightCollapsed)}
         nodes={nodes}
         onReorderUINodes={handleReorderUINodes}
+        isMobile={isMobile}
+        onOpenMobilePalette={() => setMobilePaletteOpen(true)}
+        onOpenMobileInspector={() => setMobileInspectorOpen(true)}
+        selectedNodeId={selectedNodeId}
       />
 
       {/* Main Multi-Panel Workspace */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         {activeView === 'builder' || activeView === 'canvas' ? (
           <>
-            {/* Left: Palette */}
+            {/* Left: Palette (Desktop / Tablet Sidebar) */}
             <div className="hide-mobile" style={{ height: '100%' }}>
               <ComponentPalette
                 onAddNode={handleAddNode}
@@ -970,7 +1005,7 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
             </div>
 
             {/* Center: Infinite Visual Builder */}
-            <div style={{ flex: 1, position: 'relative', height: '100%' }}>
+            <div style={{ flex: 1, position: 'relative', height: '100%', overflow: 'hidden' }}>
               <VisualCanvas
                 nodes={nodes}
                 connections={connections}
@@ -978,7 +1013,12 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
                 selectedConnectionId={selectedConnectionId}
                 highlightedNodeId={highlightedNodeId}
                 highlightedConnectionId={highlightedConnectionId}
-                onSelectNode={setSelectedNodeId}
+                onSelectNode={(id) => {
+                  setSelectedNodeId(id);
+                  if (id && isMobile) {
+                    setMobileInspectorOpen(true);
+                  }
+                }}
                 onSelectConnection={setSelectedConnectionId}
                 onMoveNode={handleMoveNode}
                 onConnect={handleConnect}
@@ -991,9 +1031,44 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
                 onWrapNodes={handleWrapNodesOnCanvas}
                 onSwitchToLayout={() => setActiveView('layout')}
               />
+
+              {/* Floating Action Buttons for Mobile Builder */}
+              {isMobile && (
+                <>
+                  <button
+                    type="button"
+                    className="playground-mobile-fab"
+                    style={{ bottom: '16px', left: '16px' }}
+                    onClick={() => setMobilePaletteOpen(true)}
+                    title="Add Component from Palette"
+                  >
+                    <Plus size={15} />
+                    <span>+ Add Module</span>
+                  </button>
+
+                  {selectedNode && (
+                    <button
+                      type="button"
+                      className="playground-mobile-fab"
+                      style={{
+                        bottom: '16px',
+                        right: '16px',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--accent-primary)',
+                      }}
+                      onClick={() => setMobileInspectorOpen(true)}
+                      title="Inspect selected module properties"
+                    >
+                      <Settings size={14} style={{ color: 'var(--accent-primary)' }} />
+                      <span>{selectedNode.subtype}</span>
+                    </button>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Right: Inspector */}
+            {/* Right: Inspector (Desktop / Tablet Sidebar) */}
             <div className="hide-mobile" style={{ height: '100%' }}>
               <Inspector
                 selectedNode={selectedNode}
@@ -1011,6 +1086,55 @@ export const PlaygroundPage: React.FC<PlaygroundPageProps> = ({
                 onDeselect={() => setSelectedNodeId(null)}
               />
             </div>
+
+            {/* Mobile Slide-Over Drawer for Component Palette */}
+            {isMobile && (
+              <Drawer
+                isOpen={mobilePaletteOpen}
+                onClose={() => setMobilePaletteOpen(false)}
+                title="Add Module from Palette"
+                side="left"
+                width="280px"
+              >
+                <ComponentPalette
+                  onAddNode={(type, subtype) => {
+                    handleAddNode(type, subtype);
+                    setMobilePaletteOpen(false);
+                  }}
+                />
+              </Drawer>
+            )}
+
+            {/* Mobile Slide-Over Drawer for Inspector */}
+            {isMobile && (
+              <Drawer
+                isOpen={mobileInspectorOpen}
+                onClose={() => setMobileInspectorOpen(false)}
+                title={selectedNode ? `${selectedNode.subtype} Properties` : 'Inspector'}
+                side="right"
+                width="320px"
+              >
+                <Inspector
+                  selectedNode={selectedNode}
+                  allNodes={nodes}
+                  connections={connections}
+                  onUpdateProps={handleUpdateProps}
+                  onDeleteNode={(id) => {
+                    handleDeleteNode(id);
+                    setMobileInspectorOpen(false);
+                  }}
+                  onDuplicateNode={handleDuplicateNode}
+                  onConnect={handleConnect}
+                  onDeleteConnection={handleDeleteConnection}
+                  onSetNodeParent={handleSetNodeParent}
+                  onAddChildToContainer={handleAddChildToContainer}
+                  onDeselect={() => {
+                    setSelectedNodeId(null);
+                    setMobileInspectorOpen(false);
+                  }}
+                />
+              </Drawer>
+            )}
           </>
         ) : activeView === 'layout' ? (
           <div style={{ flex: 1, height: '100%' }}>

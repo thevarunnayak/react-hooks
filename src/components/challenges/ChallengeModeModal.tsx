@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { CHALLENGES_LIST, CHALLENGE_CATEGORIES } from '../../data/challenges';
@@ -39,6 +39,15 @@ export const ChallengeModeModal: React.FC<ChallengeModeModalProps> = ({
   const [timeLimitMinutes, setTimeLimitMinutes] = useState<number>(10);
   const [difficultyIndex, setDifficultyIndex] = useState<number>(0);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 560);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 560);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const selectedDifficulty = DIFFICULTY_STEPS[difficultyIndex];
   const allAvailableCategories = useMemo(
@@ -156,7 +165,7 @@ export const ChallengeModeModal: React.FC<ChallengeModeModalProps> = ({
             <Clock size={13} />
             <span>Time Limit</span>
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(85px, 1fr))', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(85px, 1fr))', gap: '6px' }}>
             {TIME_LIMITS.map((t) => {
               const isSelected = timeLimitMinutes === t.value;
               return (
@@ -335,21 +344,23 @@ export const ChallengeModeModal: React.FC<ChallengeModeModalProps> = ({
         <div
           style={{
             display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: isMobile ? 'stretch' : 'center',
             paddingTop: '12px',
             borderTop: '1px solid var(--border-subtle)',
+            gap: isMobile ? '10px' : '12px',
           }}
         >
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', textAlign: isMobile ? 'center' : 'left' }}>
             Available Questions:{' '}
             <strong style={{ color: matchingQuestions.length > 0 ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
               {matchingQuestions.length}
             </strong>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Button size="sm" variant="ghost" onClick={onClose}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: isMobile ? 'center' : 'flex-end', width: isMobile ? '100%' : 'auto' }}>
+            <Button size="sm" variant="ghost" onClick={onClose} style={{ flex: isMobile ? 1 : 'initial' }}>
               Cancel
             </Button>
             <Button
@@ -358,8 +369,9 @@ export const ChallengeModeModal: React.FC<ChallengeModeModalProps> = ({
               disabled={matchingQuestions.length === 0}
               icon={<Zap size={14} />}
               onClick={handleStart}
+              style={{ flex: isMobile ? 2 : 'initial' }}
             >
-              Start Challenge ({Math.min(questionCount, matchingQuestions.length)} Qs)
+              {isMobile ? `Start (${Math.min(questionCount, matchingQuestions.length)} Qs)` : `Start Challenge (${Math.min(questionCount, matchingQuestions.length)} Qs)`}
             </Button>
           </div>
         </div>

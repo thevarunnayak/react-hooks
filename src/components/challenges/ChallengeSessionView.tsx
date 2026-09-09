@@ -45,6 +45,15 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [secondsRemaining, setSecondsRemaining] = useState(timeLimitMinutes * 60);
   const [totalSecondsSpent, setTotalSecondsSpent] = useState(0);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Timer countdown
   useEffect(() => {
@@ -171,7 +180,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
   // If test is submitted, render Result Feedback Screen
   if (isSubmitted) {
     return (
-      <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
         {/* Top Summary Card */}
         <Card
           variant="elevated"
@@ -181,23 +190,23 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
             backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border-default)',
             borderRadius: 'var(--radius-xl)',
-            padding: 'var(--space-8) var(--space-6)',
+            padding: isMobile ? 'var(--space-6) var(--space-4)' : 'var(--space-8) var(--space-6)',
           }}
         >
           <div
             style={{
-              width: '56px',
-              height: '56px',
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
               borderRadius: '50%',
               backgroundColor: scoreResults.percentage >= 70 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 179, 8, 0.15)',
               color: scoreResults.percentage >= 70 ? 'var(--accent-success)' : 'var(--accent-warning)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 16px auto',
+              margin: '0 auto 14px auto',
             }}
           >
-            {scoreResults.percentage >= 70 ? <Award size={32} /> : <Flame size={32} />}
+            {scoreResults.percentage >= 70 ? <Award size={isMobile ? 26 : 32} /> : <Flame size={isMobile ? 26 : 32} />}
           </div>
 
           <span
@@ -209,16 +218,16 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
               borderRadius: 'var(--radius-full)',
               backgroundColor: 'var(--bg-subtle)',
               color: scoreResults.badgeColor,
-              marginBottom: '12px',
+              marginBottom: '10px',
             }}
           >
             {scoreResults.badgeText}
           </span>
 
-          <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+          <h2 style={{ fontSize: 'clamp(var(--text-xl), 4vw, var(--text-2xl))', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
             Challenge Completed!
           </h2>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: '0 0 24px 0' }}>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: '0 0 20px 0' }}>
             You scored {scoreResults.correct} out of {scoreResults.total} ({scoreResults.percentage}%)
           </p>
 
@@ -226,38 +235,49 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '12px',
+              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: isMobile ? '6px' : '12px',
               maxWidth: '650px',
-              margin: '0 auto 24px auto',
+              margin: '0 auto 20px auto',
+              width: '100%',
             }}
           >
-            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Score</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '4px' }}>
+            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: isMobile ? '8px 4px' : '12px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: isMobile ? '10px' : '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Score</div>
+              <div style={{ fontSize: isMobile ? 'var(--text-base)' : 'var(--text-xl)', fontWeight: 800, color: 'var(--accent-primary)', marginTop: '4px' }}>
                 {scoreResults.percentage}%
               </div>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Accuracy</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--accent-success)', marginTop: '4px' }}>
+            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: isMobile ? '8px 4px' : '12px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: isMobile ? '10px' : '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Accuracy</div>
+              <div style={{ fontSize: isMobile ? 'var(--text-base)' : 'var(--text-xl)', fontWeight: 800, color: 'var(--accent-success)', marginTop: '4px' }}>
                 {scoreResults.correct} / {scoreResults.total}
               </div>
             </div>
-            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: '12px', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Time Spent</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div style={{ backgroundColor: 'var(--bg-subtle)', padding: isMobile ? '8px 4px' : '12px', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ fontSize: isMobile ? '10px' : '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Time Spent</div>
+              <div style={{ fontSize: isMobile ? 'var(--text-base)' : 'var(--text-xl)', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
                 {formatTime(totalSecondsSpent)}
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <Button variant="secondary" icon={<RotateCcw size={14} />} onClick={onRetake}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', width: '100%' }}>
+            <Button
+              variant="secondary"
+              icon={<RotateCcw size={14} />}
+              onClick={onRetake}
+              style={{ flex: isMobile ? '1 1 100%' : 'initial' }}
+            >
               Retake Challenge
             </Button>
-            <Button variant="primary" icon={<ArrowLeft size={14} />} onClick={onExit}>
+            <Button
+              variant="primary"
+              icon={<ArrowLeft size={14} />}
+              onClick={onExit}
+              style={{ flex: isMobile ? '1 1 100%' : 'initial' }}
+            >
               Back to Challenges Library
             </Button>
           </div>
@@ -265,8 +285,8 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
 
         {/* Detailed Question-by-Question Review with Explanations */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <HelpCircle size={18} style={{ color: 'var(--accent-purple)' }} />
+          <h3 style={{ fontSize: 'clamp(var(--text-base), 3.5vw, var(--text-lg))', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <HelpCircle size={18} style={{ color: 'var(--accent-purple)', flexShrink: 0 }} />
             <span>Detailed Question Review & Explanations</span>
           </h3>
 
@@ -285,11 +305,12 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                   flexDirection: 'column',
                   gap: '12px',
                   borderLeft: `4px solid ${isCorrect ? 'var(--accent-success)' : 'var(--accent-danger)'}`,
+                  padding: isMobile ? 'var(--space-3)' : 'var(--space-4)',
                 }}
               >
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <span
                       style={{
                         fontSize: '11px',
@@ -323,7 +344,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                   <pre
                     style={{
                       margin: 0,
-                      padding: '12px',
+                      padding: isMobile ? '10px 12px' : '12px',
                       borderRadius: 'var(--radius-md)',
                       backgroundColor: 'var(--bg-code)',
                       border: '1px solid var(--border-subtle)',
@@ -331,6 +352,8 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                       fontSize: '11px',
                       lineHeight: 1.5,
                       overflowX: 'auto',
+                      WebkitOverflowScrolling: 'touch',
+                      maxWidth: '100%',
                       color: 'var(--text-code)',
                     }}
                   >
@@ -362,16 +385,17 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                       <div
                         key={optIdx}
                         style={{
-                          padding: '8px 12px',
+                          padding: isMobile ? '8px 10px' : '8px 12px',
                           borderRadius: 'var(--radius-md)',
                           border: `1px solid ${borderColor}`,
                           backgroundColor: bg,
                           color: color,
                           fontSize: 'var(--text-xs)',
                           display: 'flex',
-                          alignItems: 'center',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'flex-start' : 'center',
                           justifyContent: 'space-between',
-                          gap: '8px',
+                          gap: isMobile ? '6px' : '8px',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -396,10 +420,10 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                           >
                             {String.fromCharCode(65 + optIdx)}
                           </span>
-                          <span>{opt}</span>
+                          <span style={{ lineHeight: 1.45, wordBreak: 'break-word' }}>{opt}</span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0, alignSelf: isMobile ? 'flex-end' : 'center' }}>
                           {isRightAnswer && (
                             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--accent-success)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <Check size={11} /> Correct Answer
@@ -441,7 +465,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
 
   // Active Exam Phase
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
       {/* Top Test Control Bar */}
       <Card
         variant="elevated"
@@ -451,33 +475,35 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: '10px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
+          padding: isMobile ? '10px 12px' : 'var(--space-4)',
         }}
       >
         {/* Left: Question counter & Progress */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <div
             style={{
-              width: '32px',
-              height: '32px',
+              width: '30px',
+              height: '30px',
               borderRadius: 'var(--radius-sm)',
               backgroundColor: 'rgba(234, 179, 8, 0.15)',
               color: '#eab308',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <Zap size={16} />
+            <Zap size={15} />
           </div>
-          <div>
-            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Question {currentIndex + 1} of {challenges.length}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              Q {currentIndex + 1} of {challenges.length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               {Object.keys(answers).length} answered
             </div>
           </div>
@@ -489,24 +515,25 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
+              gap: '5px',
+              padding: isMobile ? '4px 10px' : '6px 14px',
               borderRadius: 'var(--radius-full)',
               backgroundColor: secondsRemaining < 60 ? 'rgba(244, 63, 94, 0.15)' : 'var(--bg-subtle)',
               border: `1px solid ${secondsRemaining < 60 ? 'rgba(244, 63, 94, 0.4)' : 'var(--border-subtle)'}`,
               color: secondsRemaining < 60 ? 'var(--accent-danger)' : 'var(--text-primary)',
               fontWeight: 700,
-              fontSize: 'var(--text-sm)',
+              fontSize: isMobile ? 'var(--text-xs)' : 'var(--text-sm)',
               letterSpacing: '0.04em',
+              flexShrink: 0,
             }}
           >
-            <Clock size={15} style={{ animation: secondsRemaining < 60 ? 'pulse 1s infinite' : 'none' }} />
+            <Clock size={14} style={{ animation: secondsRemaining < 60 ? 'pulse 1s infinite' : 'none' }} />
             <span>{formatTime(secondsRemaining)}</span>
           </div>
         )}
 
         {/* Right: Submit or Exit */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <Button
             size="xs"
             variant="ghost"
@@ -523,10 +550,10 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
               });
             }}
           >
-            Exit Test
+            {isMobile ? 'Exit' : 'Exit Test'}
           </Button>
           <Button size="xs" variant="primary" onClick={handleConfirmSubmit}>
-            Finish & Submit
+            {isMobile ? 'Finish' : 'Finish & Submit'}
           </Button>
         </div>
       </Card>
@@ -538,7 +565,9 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
           display: 'flex',
           gap: '6px',
           overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
           padding: '4px 2px',
+          width: '100%',
         }}
       >
         {challenges.map((c, idx) => {
@@ -583,15 +612,16 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          gap: '14px',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-lg)',
+          padding: isMobile ? 'var(--space-4)' : 'var(--space-6)',
         }}
       >
         {/* Meta badges */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span
               style={{
                 fontSize: 'var(--text-xs)',
@@ -614,7 +644,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
         </div>
 
         {/* Question Statement */}
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.55 }}>
+        <div style={{ fontSize: isMobile ? 'var(--text-sm)' : 'var(--text-md)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.55 }}>
           {activeChallenge.question}
         </div>
 
@@ -623,14 +653,16 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
           <pre
             style={{
               margin: 0,
-              padding: '14px',
+              padding: isMobile ? '10px 12px' : '14px',
               borderRadius: 'var(--radius-md)',
               backgroundColor: 'var(--bg-code)',
               border: '1px solid var(--border-subtle)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
+              fontSize: isMobile ? '11px' : '12px',
               lineHeight: 1.55,
               overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              maxWidth: '100%',
               color: 'var(--text-code)',
             }}
           >
@@ -652,24 +684,24 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                 type="button"
                 onClick={() => handleSelectOption(optIdx)}
                 style={{
-                  padding: '12px 16px',
+                  padding: isMobile ? '10px 12px' : '12px 16px',
                   borderRadius: 'var(--radius-md)',
                   border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
                   backgroundColor: isSelected ? 'var(--accent-primary-subtle)' : 'var(--bg-subtle)',
                   color: isSelected ? 'var(--accent-primary-text)' : 'var(--text-primary)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
+                  gap: isMobile ? '10px' : '12px',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  fontSize: 'var(--text-sm)',
+                  fontSize: isMobile ? 'var(--text-xs)' : 'var(--text-sm)',
                   transition: 'all var(--transition-fast)',
                 }}
               >
                 <div
                   style={{
-                    width: '22px',
-                    height: '22px',
+                    width: isMobile ? '20px' : '22px',
+                    height: isMobile ? '20px' : '22px',
                     borderRadius: '50%',
                     border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-default)'}`,
                     backgroundColor: isSelected ? 'var(--accent-primary)' : 'transparent',
@@ -677,14 +709,14 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '11px',
+                    fontSize: isMobile ? '10px' : '11px',
                     fontWeight: 700,
                     flexShrink: 0,
                   }}
                 >
                   {String.fromCharCode(65 + optIdx)}
                 </div>
-                <span style={{ lineHeight: 1.45 }}>{option}</span>
+                <span style={{ lineHeight: 1.45, wordBreak: 'break-word' }}>{option}</span>
               </button>
             );
           })}
@@ -696,9 +728,10 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            paddingTop: '16px',
+            paddingTop: '14px',
             borderTop: '1px solid var(--border-subtle)',
-            marginTop: '8px',
+            marginTop: '6px',
+            gap: '8px',
           }}
         >
           <Button
@@ -708,7 +741,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
             icon={<ArrowLeft size={14} />}
             onClick={() => handleManualJump(Math.max(0, currentIndex - 1))}
           >
-            Previous
+            {isMobile ? 'Prev' : 'Previous'}
           </Button>
 
           {currentIndex < challenges.length - 1 ? (
@@ -722,7 +755,7 @@ export const ChallengeSessionView: React.FC<ChallengeSessionViewProps> = ({
             </Button>
           ) : (
             <Button size="sm" variant="primary" onClick={handleConfirmSubmit}>
-              Submit Challenge
+              {isMobile ? 'Submit' : 'Submit Challenge'}
             </Button>
           )}
         </div>

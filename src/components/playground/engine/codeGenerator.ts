@@ -560,6 +560,16 @@ export function generateReactCode(
       ? `${innerIndent}{/* Empty Container */}`
       : orderedChildren.map((c) => c.jsx).join('\n');
 
+    const rawId = firstNode?.props?.layoutGroupId || firstNode?.props?.layoutGroupName;
+    const sanitizedId = rawId
+      ? rawId
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9_-]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+      : '';
+    const idAttr = sanitizedId ? ` id="${sanitizedId}"` : '';
+
     if (styleFormat === 'tailwind') {
       const tailwindJustify =
         justify === 'center'
@@ -596,11 +606,11 @@ export function generateReactCode(
       const tailwindWrap = wrap === 'nowrap' ? 'flex-nowrap' : 'flex-wrap';
 
       if (isGrid) {
-        return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">\n${childrenJSX}\n${indent}</div>`;
+        return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div${idAttr} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">\n${childrenJSX}\n${indent}</div>`;
       } else if (isCard) {
-        return `${indent}{/* Card Container: ${groupTitle} */}\n${indent}<div className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">\n${childrenJSX}\n${indent}</div>`;
+        return `${indent}{/* Card Container: ${groupTitle} */}\n${indent}<div${idAttr} className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">\n${childrenJSX}\n${indent}</div>`;
       } else {
-        return `${indent}{/* Div Wrapper: ${groupTitle} */}\n${indent}<div className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full">\n${childrenJSX}\n${indent}</div>`;
+        return `${indent}{/* Div Wrapper: ${groupTitle} */}\n${indent}<div${idAttr} className="flex ${isRow ? 'flex-row' : 'flex-col'} ${tailwindWrap} ${tailwindAlign} ${tailwindJustify} ${tailwindGap} w-full">\n${childrenJSX}\n${indent}</div>`;
       }
     } else if (styleFormat === 'scss') {
       const groupClass = isGrid
@@ -612,7 +622,7 @@ export function generateReactCode(
         : isRow
         ? 'styles.flexRow'
         : 'styles.flexCol';
-      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div className={${groupClass}}>\n${childrenJSX}\n${indent}</div>`;
+      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div${idAttr} className={${groupClass}}>\n${childrenJSX}\n${indent}</div>`;
     } else {
       const styleProps = [
         `display: '${isGrid ? 'grid' : 'flex'}'`,
@@ -634,7 +644,7 @@ export function generateReactCode(
           `boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)'`
         );
       }
-      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div style={{ ${styleProps.join(', ')} }}>\n${childrenJSX}\n${indent}</div>`;
+      return `${indent}{/* Flex Container: ${groupTitle} */}\n${indent}<div${idAttr} style={{ ${styleProps.join(', ')} }}>\n${childrenJSX}\n${indent}</div>`;
     }
   };
 

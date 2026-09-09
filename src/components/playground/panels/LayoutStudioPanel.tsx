@@ -28,11 +28,20 @@ import {
   CreditCard,
   ArrowUpDown,
   ArrowUpRight,
+  Edit2,
+  Check,
+  X,
 } from 'lucide-react';
 import { PlaygroundNode, DeviceViewportType, FlexContainerConfig } from '../../../types/playground';
 import { Button } from '../../ui/Button';
 import { Tooltip } from '../../ui/Tooltip';
 import { JustifyDropdown, GapDropdown, ItemSizingDropdown } from './LayoutDropdowns';
+import {
+  WrapDropdown,
+  ExistingContainerOption,
+  MergeElementCandidate,
+  sanitizeHtmlId,
+} from './WrapDropdown';
 
 export interface LayoutStudioPanelProps {
   nodes: PlaygroundNode[];
@@ -93,14 +102,23 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   const [dragOverChildId, setDragOverChildId] = useState<string | null>(null);
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
 
+  // Container rename inline state
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState<string>('');
+
   // Synchronous ref to track dragged item across HTML5 DnD event lifecycles
   const draggedIdRef = useRef<string | null>(null);
 
   // Active insertion gap drop index (0 before first block, 1..n between blocks, n after last block)
   const [dropInsertionIndex, setDropInsertionIndex] = useState<number | null>(null);
 
-  // Active view mode in the studio: 'builder' | 'split'
-  const [studioViewMode, setStudioViewMode] = useState<'builder' | 'split'>('split');
+  // Active view mode in the studio: 'builder' | 'split' | 'preview'
+  const [studioViewMode, setStudioViewMode] = useState<'builder' | 'split' | 'preview'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 900) {
+      return 'builder';
+    }
+    return 'split';
+  });
 
   // Filter UI nodes in current sequence
   const uiNodes = useMemo(() => {
@@ -148,20 +166,15 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
     return false;
   };
 
-  // Helper to collect all UI node IDs from a recursive container children tree
+  // Helper to extract UI node IDs from a container's children hierarchy
   const getUINodeIdsFromChildren = (children: ContainerChild[], allNodes: PlaygroundNode[]): string[] => {
     const ids: string[] = [];
     for (const child of children) {
       if (child.kind === 'node') {
-        ids.push(child.node.id);
+        ids.push(child.id);
       } else {
-        const nestedIds = getUINodeIdsFromChildren(child.children, allNodes);
-        if (nestedIds.length > 0) {
-          ids.push(...nestedIds);
-        } else {
-          const holder = allNodes.find((n) => n.props?.layoutGroup === child.groupId && n.props?.isContainerHolder);
-          if (holder) ids.push(holder.id);
-        }
+        const subGroupNodes = allNodes.filter((n) => n.props?.layoutGroup === child.groupId && !n.props?.isContainerHolder);
+        subGroupNodes.forEach((n) => ids.push(n.id));
       }
     }
     return ids;
@@ -222,9 +235,9 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
       id: groupId,
       groupId,
       parentGroup: firstNode?.props?.parentGroup,
-      config,
       children,
       items: realLeafNodes,
+      config,
     };
   };
 
@@ -264,6 +277,51 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
     return blocks;
   }, [uiNodes]);
 
+  // List of existing containers for WrapDropdown options
+  const existingContainersList = useMemo<ExistingContainerOption[]>(() => {
+    return flowBlocks
+      .filter((b): b is FlowBlock & { type: 'container' } => b.type === 'container')
+      .map((b) => ({
+        groupId: b.groupId,
+        name: b.config.name || `${b.config.containerType === 'card' ? 'Card' : 'Div'} Container`,
+        itemCount: b.children.length,
+        containerType: b.config.containerType || 'div',
+      }));
+  }, [flowBlocks]);
+
+  const getNodeTitle = (node: PlaygroundNode): string => {
+    if (!node) return 'Component';
+    const p = node.props || {};
+    return p.content || (p as any).title || (p as any).label || p.placeholder || node.label || node.subtype || 'Component';
+  };
+
+  // Helper to get other UI nodes for merge candidates
+  const getOtherNodesList = (excludeNodeId: string): MergeElementCandidate[] => {
+    return uiNodes
+      .filter((n) => n.id !== excludeNodeId && !n.props?.isContainerHolder)
+      .map((n) => ({
+        id: n.id,
+        title: getNodeTitle(n),
+        subtype: n.subtype,
+      }));
+  };
+
+  // Start renaming a container
+  const handleStartRenameContainer = (groupId: string, currentName: string) => {
+    setEditingGroupId(groupId);
+    setEditingGroupName(currentName);
+  };
+
+  // Save container name
+  const handleSaveContainerName = (groupId: string) => {
+    const trimmed = editingGroupName.trim();
+    if (trimmed) {
+      handleUpdateContainerProp(groupId, 'layoutGroupName', trimmed);
+      handleUpdateContainerProp(groupId, 'layoutGroupId', sanitizeHtmlId(trimmed));
+    }
+    setEditingGroupId(null);
+  };
+
   // Count containers for stats (all unique layoutGroups)
   const containerCount = useMemo(() => {
     const groupSet = new Set<string>();
@@ -292,7 +350,8 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   const handleGroupSelected = (
     direction: 'row' | 'column' | 'grid',
     containerType: 'div' | 'card' = 'div',
-    explicitNodeIds?: Set<string>
+    explicitNodeIds?: Set<string>,
+    customName?: string
   ) => {
     const targetIds = explicitNodeIds && explicitNodeIds.size > 0 ? explicitNodeIds : selectedNodeIds;
     if (targetIds.size === 0) return;
@@ -301,10 +360,12 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
     const isGrid = direction === 'grid';
     const isRow = direction === 'row';
 
-    const groupName =
-      isGrid
-        ? `2-Col Grid (${targetIds.size} items)`
-        : `${isCard ? 'Card' : 'Div'} ${isRow ? 'Row' : 'Col'} (${targetIds.size} items)`;
+    const defaultName = isGrid
+      ? `2-Col Grid (${targetIds.size} items)`
+      : `${isCard ? 'Card' : 'Div'} ${isRow ? 'Row' : 'Col'} (${targetIds.size} items)`;
+
+    const groupName = customName?.trim() || defaultName;
+    const groupIdClean = sanitizeHtmlId(groupName);
 
     // Find the earliest index among selected items in uiNodes so the row stays in place!
     const selectedIndices = uiNodes
@@ -330,6 +391,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
             uiOrder: newUIOrderMap.get(n.id) ?? n.props?.uiOrder,
             layoutGroup: newGroupId,
             layoutGroupName: groupName,
+            layoutGroupId: groupIdClean,
             containerType: isCard ? 'card' : 'div',
             containerDisplay: isGrid ? 'grid' : 'flex',
             containerDirection: isGrid ? 'row' : direction,
@@ -362,9 +424,12 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   };
 
   // Add a new empty Div or Card container into document flow
-  const handleAddEmptyContainer = (containerType: 'div' | 'card' = 'div') => {
+  const handleAddEmptyContainer = (containerType: 'div' | 'card' = 'div', customName?: string) => {
     const isCard = containerType === 'card';
     const newGroupId = `group-${Date.now()}`;
+    const defaultName = `${isCard ? 'Card' : 'Div'} Row (Empty)`;
+    const groupName = customName?.trim() || defaultName;
+    const groupIdClean = sanitizeHtmlId(groupName);
     const newHolderNode: PlaygroundNode = {
       id: `container-holder-${Date.now()}`,
       type: 'ui',
@@ -874,6 +939,33 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   };
 
   // ----------------------------------------------------
+  // WrapDropdown Action Handlers (Fallback for Drag-and-Drop)
+  // ----------------------------------------------------
+  const handleWrapInNew = (
+    nodeId: string,
+    direction: 'row' | 'column' = 'row',
+    containerType: 'div' | 'card' = 'div',
+    customName?: string
+  ) => {
+    handleGroupSelected(direction, containerType, new Set([nodeId]), customName);
+  };
+
+  const handleMoveToContainer = (nodeId: string, targetContainerId: string) => {
+    handleDropIntoContainer(nodeId, targetContainerId);
+  };
+
+  const handleMergeWithNodes = (
+    sourceNodeId: string,
+    targetNodeIds: string[],
+    customName?: string,
+    direction: 'row' | 'column' = 'row',
+    containerType: 'div' | 'card' = 'div'
+  ) => {
+    const combined = new Set([sourceNodeId, ...targetNodeIds]);
+    handleGroupSelected(direction, containerType, combined, customName);
+  };
+
+  // ----------------------------------------------------
   // Drag End & Cleanup Handler
   // ----------------------------------------------------
   const handleDragEnd = () => {
@@ -892,9 +984,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   const handleBlockDragStart = (e: React.DragEvent, blockId: string) => {
     e.stopPropagation();
     draggedIdRef.current = blockId;
-    setDraggedBlockId(blockId);
-    e.dataTransfer.setData('text/plain', blockId);
-    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', blockId);
+      e.dataTransfer.setData('application/x-reactlabz-node', blockId);
+      e.dataTransfer.effectAllowed = 'move';
+    } catch {
+      // ignore
+    }
+    requestAnimationFrame(() => {
+      setDraggedBlockId(blockId);
+    });
   };
 
   const handleBlockDragOver = (e: React.DragEvent, blockId: string) => {
@@ -908,8 +1007,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
 
   const handleBlockDragLeave = (e: React.DragEvent, blockId: string) => {
     e.stopPropagation();
-    if (e.currentTarget && (e.currentTarget as any).contains && (e.currentTarget as any).contains(e.relatedTarget as Node)) {
-      return;
+    if (e.currentTarget) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        return;
+      }
     }
     if (dragOverBlockId === blockId) {
       setDragOverBlockId(null);
@@ -976,9 +1083,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
   const handleChildDragStart = (e: React.DragEvent, childId: string) => {
     e.stopPropagation();
     draggedIdRef.current = childId;
-    setDraggedChildId(childId);
-    e.dataTransfer.setData('text/plain', childId);
-    e.dataTransfer.effectAllowed = 'move';
+    try {
+      e.dataTransfer.setData('text/plain', childId);
+      e.dataTransfer.setData('application/x-reactlabz-node', childId);
+      e.dataTransfer.effectAllowed = 'move';
+    } catch {
+      // ignore
+    }
+    requestAnimationFrame(() => {
+      setDraggedChildId(childId);
+    });
   };
 
   const handleChildDragOver = (e: React.DragEvent, childId: string) => {
@@ -992,8 +1106,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
 
   const handleChildDragLeave = (e: React.DragEvent, childId: string) => {
     e.stopPropagation();
-    if (e.currentTarget && (e.currentTarget as any).contains && (e.currentTarget as any).contains(e.relatedTarget as Node)) {
-      return;
+    if (e.currentTarget) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      if (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
+        return;
+      }
     }
     if (dragOverChildId === childId) {
       setDragOverChildId(null);
@@ -1198,8 +1320,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         }}
         onDragLeave={(e) => {
           e.stopPropagation();
-          if (e.currentTarget && (e.currentTarget as any).contains && (e.currentTarget as any).contains(e.relatedTarget as Node)) {
-            return;
+          if (e.currentTarget) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            if (
+              e.clientX >= rect.left &&
+              e.clientX <= rect.right &&
+              e.clientY >= rect.top &&
+              e.clientY <= rect.bottom
+            ) {
+              return;
+            }
           }
           if (dropInsertionIndex === index) {
             setDropInsertionIndex(null);
@@ -1217,18 +1347,18 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         style={{
           width: '100%',
           flexShrink: 0,
-          minHeight: isTarget ? '38px' : isDraggingAny ? '20px' : '6px',
-          margin: isTarget ? '4px 0' : isDraggingAny ? '2px 0' : '0px',
+          minHeight: isTarget ? '26px' : '6px',
+          margin: isTarget ? '3px 0' : '0px',
           borderRadius: 'var(--radius-md)',
           backgroundColor: isTarget
             ? 'var(--accent-primary-subtle)'
             : isDraggingAny
-            ? 'rgba(99, 102, 241, 0.08)'
+            ? 'rgba(99, 102, 241, 0.05)'
             : 'transparent',
           border: isTarget
             ? '2px dashed var(--accent-primary)'
             : isDraggingAny
-            ? '1.5px dashed rgba(99, 102, 241, 0.35)'
+            ? '1px dashed rgba(99, 102, 241, 0.25)'
             : '1px solid transparent',
           display: 'flex',
           alignItems: 'center',
@@ -1237,22 +1367,18 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
           color: 'var(--accent-primary)',
           fontSize: '11px',
           fontWeight: 600,
-          transition: 'all 120ms ease-out',
+          transition: 'all 100ms ease-out',
           boxSizing: 'border-box',
           cursor: isDraggingAny ? 'copy' : 'default',
           userSelect: 'none',
         }}
       >
-        {isTarget ? (
+        {isTarget && (
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', pointerEvents: 'none' }}>
             <ArrowUpDown size={13} style={{ color: 'var(--accent-primary)' }} />
             <span>Place item here in order</span>
           </span>
-        ) : isDraggingAny ? (
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', opacity: 0.7, pointerEvents: 'none' }}>
-            · · Drop here to place in order · ·
-          </span>
-        ) : null}
+        )}
       </div>
     );
   };
@@ -1276,8 +1402,16 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         }}
         onDragLeave={(e) => {
           e.stopPropagation();
-          if (e.currentTarget && (e.currentTarget as any).contains && (e.currentTarget as any).contains(e.relatedTarget as Node)) {
-            return;
+          if (e.currentTarget) {
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            if (
+              e.clientX >= rect.left &&
+              e.clientX <= rect.right &&
+              e.clientY >= rect.top &&
+              e.clientY <= rect.bottom
+            ) {
+              return;
+            }
           }
           if (dropInsertionIndex === index) {
             setDropInsertionIndex(null);
@@ -1295,23 +1429,23 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         style={{
           width: '100%',
           flexShrink: 0,
-          minHeight: isTarget ? '32px' : isDraggingAny ? '16px' : '4px',
-          margin: isTarget ? '4px 0' : isDraggingAny ? '2px 0' : '0px',
+          minHeight: isTarget ? '24px' : '4px',
+          margin: isTarget ? '3px 0' : '0px',
           borderRadius: 'var(--radius-md)',
           backgroundColor: isTarget
             ? 'var(--accent-primary-subtle)'
             : isDraggingAny
-            ? 'rgba(99, 102, 241, 0.08)'
+            ? 'rgba(99, 102, 241, 0.05)'
             : 'transparent',
           border: isTarget
             ? '2px dashed var(--accent-primary)'
             : isDraggingAny
-            ? '1.5px dashed rgba(99, 102, 241, 0.35)'
+            ? '1px dashed rgba(99, 102, 241, 0.25)'
             : '1px solid transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'all var(--transition-fast)',
+          transition: 'all 100ms ease-out',
           boxSizing: 'border-box',
         }}
       >
@@ -1322,12 +1456,6 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         )}
       </div>
     );
-  };
-
-  const getNodeTitle = (node: PlaygroundNode): string => {
-    if (!node) return 'Component';
-    const p = node.props || {};
-    return p.content || (p as any).title || (p as any).label || p.placeholder || node.label || node.subtype || 'Component';
   };
 
   const getSubtypeIcon = (subtype?: string) => {
@@ -1452,8 +1580,8 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         <div
           draggable={true}
           onDragStart={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.closest('select, input, [data-no-drag="true"], button')) {
+            const el = (e.target instanceof Element ? e.target : (e.target as any)?.parentElement) as HTMLElement | null;
+            if (el?.closest('select, input, [data-no-drag="true"], button, a')) {
               e.preventDefault();
               return;
             }
@@ -1498,7 +1626,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
               }}
               title="Drag container"
             >
-              <GripVertical size={14} />
+              <GripVertical size={14} style={{ pointerEvents: 'none' }} />
             </div>
 
             {!isNested ? (
@@ -1540,9 +1668,99 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
               {isCard ? <CreditCard size={isNested ? 12 : 14} /> : <Boxes size={isNested ? 12 : 14} />}
             </div>
 
-            <span style={{ fontSize: isNested ? '11.5px' : '12.5px', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'none' }}>
-              {isNested ? `↳ Nested ${isCard ? 'Card' : 'Div'}` : config.name || `${isCard ? 'Card' : 'Div'} Container`}
-            </span>
+            {editingGroupId === groupId ? (
+              <div
+                data-no-drag="true"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="text"
+                  value={editingGroupName}
+                  onChange={(e) => setEditingGroupName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveContainerName(groupId);
+                    if (e.key === 'Escape') setEditingGroupId(null);
+                  }}
+                  autoFocus
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-xs)',
+                    border: '1px solid var(--accent-primary)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    fontFamily: 'var(--font-mono)',
+                    width: '130px',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSaveContainerName(groupId)}
+                  style={{
+                    padding: '2px 5px',
+                    border: 'none',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: 'var(--accent-primary)',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Save Name & ID"
+                >
+                  <Check size={11} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingGroupId(null)}
+                  style={{
+                    padding: '2px 5px',
+                    border: 'none',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: 'transparent',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Cancel"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <div
+                data-no-drag="true"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStartRenameContainer(groupId, config.name || `${isCard ? 'Card' : 'Div'} Container`);
+                }}
+                title="Click to rename container (sets HTML id in generated code)"
+              >
+                <span style={{ fontSize: isNested ? '11.5px' : '12.5px', fontWeight: 700, color: 'var(--text-primary)', userSelect: 'none' }}>
+                  {isNested ? `↳ Nested ${isCard ? 'Card' : 'Div'}` : config.name || `${isCard ? 'Card' : 'Div'} Container`}
+                </span>
+                <span
+                  style={{
+                    fontSize: '9.5px',
+                    fontFamily: 'var(--font-mono)',
+                    padding: '1px 5px',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    color: 'var(--accent-primary)',
+                    fontWeight: 600,
+                  }}
+                  title="Generated HTML id attribute in TSX"
+                >
+                  #{sanitizeHtmlId(config.name || `${isCard ? 'card' : 'div'}-${groupId}`)}
+                </span>
+                <Edit2 size={11} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+              </div>
+            )}
 
             <span
               style={{
@@ -1797,8 +2015,8 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                   key={node.id}
                   draggable={true}
                   onDragStart={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest('input[type="checkbox"], select, [data-no-drag="true"], button')) {
+                    const el = (e.target instanceof Element ? e.target : (e.target as any)?.parentElement) as HTMLElement | null;
+                    if (el?.closest('input, select, [data-no-drag="true"], button, a')) {
                       e.preventDefault();
                       return;
                     }
@@ -1849,7 +2067,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                       }}
                       title="Drag to reorder item"
                     >
-                      <GripVertical size={13} />
+                      <GripVertical size={13} style={{ pointerEvents: 'none' }} />
                     </div>
 
                     <input
@@ -1897,6 +2115,18 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                    <WrapDropdown
+                      nodeId={node.id}
+                      nodeTitle={title}
+                      existingContainers={existingContainersList.filter((c) => c.groupId !== groupId)}
+                      otherNodes={getOtherNodesList(node.id)}
+                      selectedNodeIds={selectedNodeIds}
+                      onWrapInNew={handleWrapInNew}
+                      onMoveToContainer={handleMoveToContainer}
+                      onMergeWithNodes={handleMergeWithNodes}
+                      compact={true}
+                    />
+
                     <ItemSizingDropdown
                       value={node.props?.flexWidth || 'flex-1'}
                       onChange={(val) => onUpdateProps(node.id, { flexWidth: val })}
@@ -2175,26 +2405,6 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
           >
             <button
               type="button"
-              onClick={() => setStudioViewMode('split')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                fontSize: '11px',
-                fontWeight: studioViewMode === 'split' ? 600 : 500,
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                backgroundColor: studioViewMode === 'split' ? 'var(--accent-primary)' : 'transparent',
-                color: studioViewMode === 'split' ? '#ffffff' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              <Columns size={12} />
-              <span className="hide-mobile">Split View</span>
-            </button>
-            <button
-              type="button"
               onClick={() => setStudioViewMode('builder')}
               style={{
                 display: 'flex',
@@ -2209,9 +2419,53 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                 color: studioViewMode === 'builder' ? '#ffffff' : 'var(--text-muted)',
                 cursor: 'pointer',
               }}
+              title="View Tree Structure"
             >
               <Boxes size={12} />
-              <span className="hide-mobile">Structure Only</span>
+              <span>Tree</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStudioViewMode('preview')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: studioViewMode === 'preview' ? 600 : 500,
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                backgroundColor: studioViewMode === 'preview' ? 'var(--accent-primary)' : 'transparent',
+                color: studioViewMode === 'preview' ? '#ffffff' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+              title="View Interactive Live Layout Canvas"
+            >
+              <Eye size={12} />
+              <span>Canvas</span>
+            </button>
+            <button
+              type="button"
+              className="hide-tablet"
+              onClick={() => setStudioViewMode('split')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: studioViewMode === 'split' ? 600 : 500,
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                backgroundColor: studioViewMode === 'split' ? 'var(--accent-primary)' : 'transparent',
+                color: studioViewMode === 'split' ? '#ffffff' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+              title="Side-by-Side Split View"
+            >
+              <Columns size={12} />
+              <span>Split</span>
             </button>
           </div>
         </div>
@@ -2387,17 +2641,18 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
       {/* Main Studio Body (Split or Full) */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* Left Column: Layout & Flex Tree Composer */}
-        <div
-          style={{
-            flex: studioViewMode === 'split' ? '0 0 52%' : '1 1 100%',
-            borderRight: studioViewMode === 'split' ? '1px solid var(--border-default)' : 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            overflowY: 'auto',
-            padding: '16px 20px',
-            gap: '6px',
-          }}
-        >
+        {(studioViewMode === 'builder' || studioViewMode === 'split') && (
+          <div
+            style={{
+              flex: studioViewMode === 'split' ? '0 0 52%' : '1 1 100%',
+              borderRight: studioViewMode === 'split' ? '1px solid var(--border-default)' : 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+              padding: 'clamp(10px, 2vw, 20px)',
+              gap: '6px',
+            }}
+          >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Document Flow &amp; Flexbox Containers
@@ -2461,8 +2716,8 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                   key={node.id}
                   draggable={true}
                   onDragStart={(e) => {
-                    const target = e.target as HTMLElement;
-                    if (target.closest('input[type="checkbox"], select, [data-no-drag="true"], button')) {
+                    const el = (e.target instanceof Element ? e.target : (e.target as any)?.parentElement) as HTMLElement | null;
+                    if (el?.closest('input, select, [data-no-drag="true"], button, a')) {
                       e.preventDefault();
                       return;
                     }
@@ -2483,6 +2738,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                     handleDragEnd();
                   }}
                   style={{
+                    position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
                     flexShrink: 0,
@@ -2493,7 +2749,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                     border: isSelected
                       ? '1px solid var(--accent-primary)'
                       : isHoveredByAnotherNode
-                      ? '1.5px dashed var(--accent-primary)'
+                      ? '2px dashed var(--accent-primary)'
                       : '1px solid var(--border-default)',
                     boxShadow: isHoveredByAnotherNode
                       ? '0 0 0 2px var(--accent-primary), 0 8px 22px rgba(99, 102, 241, 0.3)'
@@ -2501,12 +2757,11 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                       ? '0 0 0 2px var(--accent-primary), 0 6px 18px rgba(99, 102, 241, 0.25)'
                       : 'var(--shadow-xs)',
                     outline: 'none',
-                    gap: isHoveredByAnotherNode ? '8px' : '0px',
                     cursor: 'grab',
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     ...({ WebkitUserDrag: 'element' } as any),
-                    transition: 'all var(--transition-fast)',
+                    transition: 'border 100ms ease, box-shadow 100ms ease',
                     boxSizing: 'border-box',
                     width: '100%',
                   }}
@@ -2538,7 +2793,7 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                         }}
                         title="Drag to reorder in document flow, or drag onto another item to wrap"
                       >
-                        <GripVertical size={14} />
+                        <GripVertical size={14} style={{ pointerEvents: 'none' }} />
                       </div>
 
                       <input
@@ -2589,71 +2844,43 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <div
-                        data-no-drag="true"
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          let targetIds: Set<string>;
-                          if (selectedNodeIds.size > 0) {
-                            targetIds = new Set([...selectedNodeIds, node.id]);
-                          } else {
-                            const nodeIdx = uiNodes.findIndex((n) => n.id === node.id);
-                            const adjacentNode = uiNodes[nodeIdx + 1] || uiNodes[nodeIdx - 1];
-                            if (adjacentNode && !adjacentNode.props?.layoutGroup) {
-                              targetIds = new Set([node.id, adjacentNode.id]);
-                            } else {
-                              targetIds = new Set([node.id]);
-                            }
-                          }
-                          handleGroupSelected('row', 'div', targetIds);
-                        }}
-                        title="Wrap in pure Div flex row (auto-combines with adjacent item if none checked)"
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          padding: '3px 8px',
-                          fontSize: '11px',
-                          fontWeight: 500,
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: 'var(--bg-surface)',
-                          border: '1px solid var(--border-default)',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer',
-                          outline: 'none',
-                          userSelect: 'none',
-                        }}
-                      >
-                        <Plus size={11} />
-                        <span>Wrap in Row</span>
-                      </div>
+                      <WrapDropdown
+                        nodeId={node.id}
+                        nodeTitle={title}
+                        existingContainers={existingContainersList}
+                        otherNodes={getOtherNodesList(node.id)}
+                        selectedNodeIds={selectedNodeIds}
+                        onWrapInNew={handleWrapInNew}
+                        onMoveToContainer={handleMoveToContainer}
+                        onMergeWithNodes={handleMergeWithNodes}
+                        compact={true}
+                      />
                     </div>
                   </div>
 
-                  {/* Drag-over indicator: Drop to wrap together into pure Div row */}
+                  {/* Drag-over indicator: Non-shifting floating badge */}
                   {isHoveredByAnotherNode && (
                     <div
                       style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: 'var(--accent-primary-subtle)',
-                        border: '1px dashed var(--accent-primary)',
+                        position: 'absolute',
+                        right: '8px',
+                        top: '-10px',
+                        padding: '2px 8px',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: 'var(--accent-primary)',
+                        color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        color: 'var(--accent-primary)',
-                        fontSize: '11px',
-                        fontWeight: 600,
+                        gap: '4px',
+                        fontSize: '9.5px',
+                        fontWeight: 700,
                         pointerEvents: 'none',
-                        boxSizing: 'border-box',
+                        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.4)',
+                        zIndex: 10,
                       }}
                     >
-                      <Rows size={12} />
-                      <span>Drop to wrap with "{title}" into pure Div Row</span>
+                      <Rows size={10} />
+                      <span>Drop to wrap together</span>
                     </div>
                   )}
                 </div>
@@ -2663,18 +2890,19 @@ export const LayoutStudioPanel: React.FC<LayoutStudioPanelProps> = ({
         })}
         {flowBlocks.length > 0 && renderInsertionGap(flowBlocks.length)}
         </div>
+      )}
 
-        {/* Right Column (In Split Mode): Responsive Live Frame Viewport */}
-        {studioViewMode === 'split' && (
-          <div
-            style={{
-              flex: '0 0 48%',
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: 'var(--bg-surface)',
-              overflow: 'hidden',
-            }}
-          >
+      {/* Right Column: Responsive Live Frame Viewport */}
+      {(studioViewMode === 'preview' || studioViewMode === 'split') && (
+        <div
+          style={{
+            flex: studioViewMode === 'split' ? '0 0 48%' : '1 1 100%',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'var(--bg-surface)',
+            overflow: 'hidden',
+          }}
+        >
             {/* Viewport Frame Header */}
             <div
               style={{
