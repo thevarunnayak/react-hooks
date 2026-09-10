@@ -4,6 +4,7 @@ import { CUSTOM_HOOKS_CATALOG } from '../../data/custom-hooks/catalog';
 import { TUTORIAL_PROJECTS } from '../../components/playground/tutorials/tutorialConfigs';
 import { CHALLENGES_LIST } from '../../data/challenges';
 import { INTERVIEW_QUESTIONS_LIST } from '../../data/interviews';
+import { MACHINE_CODING_PROBLEMS } from '../../data/machineCoding/problems';
 
 let cachedIndex: SearchDocument[] | null = null;
 
@@ -64,6 +65,14 @@ export function getSearchIndex(): SearchDocument[] {
       route: 'interview',
       tags: ['interview', 'senior', 'staff', 'prep', 'architecture', 'fiber', 'reconciliation', 'concurrency'],
       content: 'Master senior frontend interview questions covering Fiber reconciliation, render vs commit phases, Virtual DOM, and state queues.',
+    },
+    {
+      id: 'page-machine-coding',
+      title: '25 Frontend Machine Coding Questions',
+      subtitle: 'Real-world machine coding problems with live interactive view, concepts, and complete solution code.',
+      route: 'machine-coding',
+      tags: ['machine coding', 'questions', 'problems', 'todo', 'debounce', 'autocomplete', 'infinite scroll', 'kanban', 'virtualization', 'tree view', 'accordion', 'tabs', 'rich text', 'code editor', 'poll', 'dashboard', 'split pane'],
+      content: 'Master the 25 most important frontend machine coding questions with interactive live labs and clean TypeScript solutions.',
     },
     {
       id: 'page-hook-builder',
@@ -269,6 +278,39 @@ export function getSearchIndex(): SearchDocument[] {
       keywords: [q.question, q.category, q.difficulty],
       content: fullContent,
       iconType: 'interview',
+    });
+  }
+
+  // 7. Machine Coding Problems
+  for (const mc of MACHINE_CODING_PROBLEMS) {
+    const conceptsText = mc.conceptsUsed.map((c) => `${c.name}: ${c.description}`).join(' ');
+    const requirementsText = [...mc.requirements.functional, ...mc.requirements.nonFunctional].join(' ');
+
+    const fullContent = [
+      mc.title,
+      mc.summary,
+      mc.explanation,
+      `Category: ${mc.category}`,
+      `Difficulty: ${mc.difficulty}`,
+      `Concepts: ${conceptsText}`,
+      `Requirements: ${requirementsText}`,
+      `Tags: ${mc.tags.join(', ')}`,
+    ].join(' ');
+
+    docs.push({
+      id: `mc-${mc.id}`,
+      title: `${mc.number}. ${mc.title}`,
+      subtitle: mc.summary,
+      category: 'challenge',
+      categoryLabel: `Machine Coding (${mc.category})`,
+      route: 'machine-coding',
+      param: mc.id,
+      difficulty: mc.difficulty,
+      badge: mc.difficulty,
+      tags: ['machine-coding', 'frontend', 'live-lab', ...mc.tags],
+      keywords: [mc.title, mc.summary, mc.category, ...mc.tags],
+      content: fullContent,
+      iconType: 'challenge',
     });
   }
 

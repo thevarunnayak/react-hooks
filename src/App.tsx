@@ -14,9 +14,11 @@ import { ExamplesPage } from './pages/ExamplesPage';
 import { ChallengesPage } from './pages/ChallengesPage';
 import { ChallengeSessionPage } from './pages/ChallengeSessionPage';
 import { InterviewPage } from './pages/InterviewPage';
+import { MachineCodingPage } from './pages/MachineCodingPage';
 import { AboutPage } from './pages/AboutPage';
 import { HOOKS_BY_ID, HOOKS_CATALOG } from './data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from './data/custom-hooks/catalog';
+import { MACHINE_CODING_PROBLEMS_BY_ID } from './data/machineCoding/problems';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { trackEvent } from './utils/analytics';
 import { getTutorialForHook, getTutorialForCustomHook } from './constants/tutorialMapping';
@@ -173,19 +175,38 @@ export function App() {
       case 'challenge-mode':
         return <ChallengeSessionPage onNavigate={navigate} />;
 
+      case 'machine-coding':
+        return (
+          <MachineCodingPage
+            onNavigate={navigate}
+            initialProblemId={currentParam}
+          />
+        );
+
       case 'interview':
         return <InterviewPage />;
 
       case 'about':
         return <AboutPage onNavigate={navigate} />;
 
-      default:
+      default: {
+        // Direct route support if URL hash is e.g. #/todo-task-manager or #/debounced-search
+        if (MACHINE_CODING_PROBLEMS_BY_ID.has(currentRoute)) {
+          return (
+            <MachineCodingPage
+              onNavigate={navigate}
+              initialProblemId={currentRoute}
+            />
+          );
+        }
+
         return (
           <HomePage
             onNavigate={navigate}
             completedLessons={completedLessons}
           />
         );
+      }
     }
   };
 

@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Badge, BadgeProps } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Accordion } from '../components/ui/Accordion';
 import {
   Award,
@@ -123,6 +124,47 @@ export const InterviewPage: React.FC = () => {
 
     return counts;
   }, [selectedDifficulty]);
+
+  // Dynamic difficulty counts based on selected category
+  const difficultyCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: 0, Senior: 0, Architect: 0, Principal: 0 };
+    INTERVIEW_QUESTIONS_LIST.forEach((q) => {
+      const matchesCat = selectedCategory === 'All' || q.category === selectedCategory;
+      if (matchesCat) {
+        counts.All += 1;
+        if (counts[q.difficulty] !== undefined) {
+          counts[q.difficulty] += 1;
+        }
+      }
+    });
+    return counts;
+  }, [selectedCategory]);
+
+  const difficultyOptions = useMemo(() => {
+    const diffConfigs = [
+      { value: 'All', label: 'All Levels', dotColor: 'var(--text-muted)' },
+      { value: 'Senior', label: 'Senior', dotColor: 'var(--accent-purple, #8b5cf6)' },
+      { value: 'Architect', label: 'Architect', dotColor: 'var(--accent-cyan, #06b6d4)' },
+      { value: 'Principal', label: 'Principal', dotColor: 'var(--accent-primary, #3b82f6)' },
+    ];
+
+    return diffConfigs.map((cfg) => ({
+      value: cfg.value,
+      label: `${cfg.label} (${difficultyCounts[cfg.value] ?? 0})`,
+      icon: (
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            backgroundColor: cfg.dotColor,
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
+        />
+      ),
+    }));
+  }, [difficultyCounts]);
 
   const INITIAL_BATCH_SIZE = 20;
   const BATCH_INCREMENT = 15;
@@ -375,45 +417,20 @@ export const InterviewPage: React.FC = () => {
             />
           </div>
 
-          {/* Difficulty Segmented Group */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          {/* Difficulty Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
               Level:
             </span>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                backgroundColor: 'var(--bg-subtle)',
-                padding: '3px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border-subtle)',
-                gap: '2px',
-              }}
-            >
-              {['All', 'Senior', 'Architect', 'Principal'].map((lvl) => {
-                const isActive = selectedDifficulty === lvl;
-                return (
-                  <button
-                    key={lvl}
-                    onClick={() => handleDifficultyChange(lvl)}
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: isActive ? 700 : 500,
-                      border: 'none',
-                      backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
-                      color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all var(--transition-fast)',
-                    }}
-                  >
-                    {lvl}
-                  </button>
-                );
-              })}
-            </div>
+            <CustomSelect
+              size="sm"
+              variant="elevated"
+              value={selectedDifficulty}
+              onChange={handleDifficultyChange}
+              options={difficultyOptions}
+              style={{ minWidth: 170 }}
+              ariaLabel="Filter interview questions by level"
+            />
           </div>
         </div>
 

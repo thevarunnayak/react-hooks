@@ -13,9 +13,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Layers,
+  Terminal,
 } from 'lucide-react';
 import { HOOKS_CATALOG } from '../../data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from '../../data/custom-hooks/catalog';
+import { MACHINE_CODING_PROBLEMS_BY_ID } from '../../data/machineCoding/problems';
 import { TUTORIAL_PROJECTS } from '../playground/tutorials/tutorialConfigs';
 import { Tooltip } from '../ui/Tooltip';
 
@@ -44,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'examples', label: 'Real-Time Architectures', icon: <Boxes size={16} style={{ color: '#10b981' }} />, badge: String(Object.keys(TUTORIAL_PROJECTS).length) },
     { id: 'hook-map', label: 'Visual Hook Map', icon: <Map size={16} /> },
     { id: 'challenges', label: 'Interactive Challenges', icon: <CheckCircle2 size={16} /> },
+    { id: 'machine-coding', label: 'Machine Coding Labs', icon: <Terminal size={16} style={{ color: 'var(--accent-primary)' }} />, badge: '25' },
     { id: 'interview', label: 'Interview Preparation', icon: <HelpCircle size={16} /> },
     { id: 'about', label: 'About & Story', icon: <Sparkles size={16} style={{ color: 'var(--accent-warning)' }} /> },
   ];
@@ -164,7 +167,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {mainNav.map((item) => {
           const isActive =
             currentRoute === item.id ||
-            (item.id === 'challenges' && (currentRoute === 'challenge-session' || currentRoute === 'challenge-mode'));
+            (item.id === 'challenges' && (currentRoute === 'challenge-session' || currentRoute === 'challenge-mode')) ||
+            (item.id === 'machine-coding' && (currentRoute === 'machine-coding' || MACHINE_CODING_PROBLEMS_BY_ID.has(currentRoute)));
 
           if (isCollapsed) {
             return (

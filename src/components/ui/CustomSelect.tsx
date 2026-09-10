@@ -182,6 +182,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         display: fullWidth ? 'flex' : 'inline-flex',
         flexDirection: 'column',
         width: fullWidth ? '100%' : 'auto',
+        maxWidth: '100%',
         ...style,
       }}
       onKeyDown={handleKeyDown}
@@ -217,15 +218,17 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
           width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
           textAlign: 'left',
           transition: 'all var(--transition-fast)',
           outline: 'none',
           boxShadow: isOpen ? '0 0 0 2px var(--accent-primary-subtle)' : 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
           {selectedOption?.icon && <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>{selectedOption.icon}</span>}
-          <span style={{ fontWeight: selectedOption ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ fontWeight: selectedOption ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
         </div>

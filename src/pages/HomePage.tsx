@@ -180,6 +180,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, completedLessons
             <Button
               size="md"
               variant="secondary"
+              icon={<Terminal size={16} />}
+              onClick={() => onNavigate('machine-coding')}
+            >
+              Machine Coding (25)
+            </Button>
+            <Button
+              size="md"
+              variant="outline"
               icon={<BookOpen size={16} />}
               onClick={() => onNavigate('hook', 'useState')}
             >
@@ -415,6 +423,106 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, completedLessons
             <CheckCircle2 size={12} />
             <span>Generates clean, type-checked React 19 TypeScript code instantly.</span>
           </div>
+        </div>
+      </Card>
+
+      {/* 25 Frontend Machine Coding Questions Featured Section */}
+      <Card
+        variant="elevated"
+        padding="lg"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-4)',
+          backgroundColor: 'var(--bg-surface-elevated)',
+          border: '1px solid var(--border-default)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '680px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Badge variant="primary" size="sm">
+                2026 INTERVIEW ESSENTIALS
+              </Badge>
+              <Badge variant="cyan" size="sm">
+                25 HANDS-ON LABS
+              </Badge>
+            </div>
+            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+              25 Frontend Machine Coding Questions
+            </h2>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+              Preparing for a Frontend interview in 2026? Don't just revise React concepts. Practice building real, production-grade features from scratch with live interactive simulations, edge-case coverage, and clean TypeScript solutions.
+            </p>
+          </div>
+          <Button
+            size="md"
+            variant="primary"
+            icon={<Terminal size={16} />}
+            iconRight={<ArrowRight size={14} />}
+            onClick={() => onNavigate('machine-coding')}
+          >
+            Explore All 25 Labs
+          </Button>
+        </div>
+
+        {/* Problem chips preview */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', paddingTop: '4px' }}>
+          {[
+            { id: 'todo-task-manager', label: '1. Todo / Task Manager' },
+            { id: 'debounced-search', label: '2. Debounced Search' },
+            { id: 'autocomplete-typeahead', label: '3. Autocomplete' },
+            { id: 'infinite-scroll', label: '4. Infinite Scroll' },
+            { id: 'file-uploader', label: '5. File Uploader' },
+            { id: 'toast-notification', label: '6. Toast System' },
+            { id: 'modal-dialog', label: '7. Modal / Dialog' },
+            { id: 'data-table', label: '8. Data Table / Grid' },
+            { id: 'image-carousel', label: '9. Image Carousel' },
+            { id: 'multi-step-form', label: '10. Multi-Step Form' },
+            { id: 'list-virtualization', label: '11. List Virtualization' },
+            { id: 'date-picker', label: '12. Date Picker' },
+            { id: 'drag-drop-board', label: '13. Drag & Drop Board' },
+            { id: 'realtime-chat', label: '14. Real-Time Chat' },
+            { id: 'pagination-component', label: '15. React Pagination' },
+            { id: 'accordion-faq', label: '16. Accordion / FAQ' },
+            { id: 'tabs-component', label: '17. Tabs Component' },
+            { id: 'tree-view-file-explorer', label: '18. Tree View Explorer' },
+            { id: 'draggable-dashboard', label: '19. Draggable Dashboard' },
+            { id: 'split-pane-resizer', label: '20. Split Pane Resizer' },
+            { id: 'breadcrumb-navigation', label: '21. Breadcrumb Nav' },
+            { id: 'poll-voting-system', label: '22. Poll & Voting' },
+            { id: 'product-gallery-zoom', label: '23. Product Gallery Zoom' },
+            { id: 'rich-text-editor', label: '24. Rich Text Editor' },
+            { id: 'code-editor-syntax', label: '25. Code Editor' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onNavigate('machine-coding', item.id)}
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                padding: '5px 11px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                e.currentTarget.style.color = 'var(--accent-primary-text)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </Card>
 

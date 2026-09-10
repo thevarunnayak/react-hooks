@@ -4,6 +4,7 @@ import { Card } from '../components/ui/Card';
 import { Badge, BadgeProps } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { Accordion } from '../components/ui/Accordion';
 import {
   CheckCircle2,
@@ -364,6 +365,57 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
 
     return counts;
   }, [selectedDifficulty, selectedType]);
+
+  // Dynamic difficulty counts based on selected category and challenge type
+  const difficultyCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      All: 0,
+      Beginner: 0,
+      Intermediate: 0,
+      Advanced: 0,
+      Expert: 0,
+    };
+
+    CHALLENGES_LIST.forEach((ch) => {
+      const matchesCat = selectedCategory === 'All' || ch.category === selectedCategory;
+      const matchesType = selectedType === 'All' || ch.type === selectedType;
+      if (matchesCat && matchesType) {
+        counts.All += 1;
+        if (counts[ch.difficulty] !== undefined) {
+          counts[ch.difficulty] += 1;
+        }
+      }
+    });
+
+    return counts;
+  }, [selectedCategory, selectedType]);
+
+  const difficultyOptions = useMemo(() => {
+    const diffConfigs = [
+      { value: 'All', label: 'All Levels', dotColor: 'var(--text-muted)' },
+      { value: 'Beginner', label: 'Beginner', dotColor: 'var(--accent-success, #10b981)' },
+      { value: 'Intermediate', label: 'Intermediate', dotColor: 'var(--accent-cyan, #06b6d4)' },
+      { value: 'Advanced', label: 'Advanced', dotColor: 'var(--accent-purple, #8b5cf6)' },
+      { value: 'Expert', label: 'Expert', dotColor: 'var(--accent-primary, #3b82f6)' },
+    ];
+
+    return diffConfigs.map((cfg) => ({
+      value: cfg.value,
+      label: `${cfg.label} (${difficultyCounts[cfg.value] ?? 0})`,
+      icon: (
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: '50%',
+            backgroundColor: cfg.dotColor,
+            display: 'inline-block',
+            flexShrink: 0,
+          }}
+        />
+      ),
+    }));
+  }, [difficultyCounts]);
 
   // Overall Statistics Calculation
   const stats = useMemo(() => {
@@ -993,50 +1045,20 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({ onNavigate }) =>
               />
             </div>
 
-            {/* Difficulty Segmented Group */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', maxWidth: '100%' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {/* Difficulty Filter Dropdown */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
                 Level:
               </span>
-              <div
-                className="no-scrollbar"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  backgroundColor: 'var(--bg-subtle)',
-                  padding: '2px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--border-subtle)',
-                  gap: '2px',
-                  overflowX: 'auto',
-                  maxWidth: '100%',
-                  WebkitOverflowScrolling: 'touch',
-                }}
-              >
-                {['All', 'Beginner', 'Intermediate', 'Advanced', 'Expert'].map((diff) => {
-                  const isActive = selectedDifficulty === diff;
-                  return (
-                    <button
-                      key={diff}
-                      onClick={() => handleDifficultyChange(diff)}
-                      style={{
-                        padding: isMobile ? '3px 8px' : '4px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: isMobile ? '11px' : 'var(--text-xs)',
-                        fontWeight: isActive ? 700 : 500,
-                        border: 'none',
-                        backgroundColor: isActive ? 'var(--accent-primary)' : 'transparent',
-                        color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        transition: 'all var(--transition-fast)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {diff}
-                    </button>
-                  );
-                })}
-              </div>
+              <CustomSelect
+                size="sm"
+                variant="elevated"
+                value={selectedDifficulty}
+                onChange={handleDifficultyChange}
+                options={difficultyOptions}
+                style={{ minWidth: 175 }}
+                ariaLabel="Filter challenges by difficulty level"
+              />
             </div>
           </div>
 

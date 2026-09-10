@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Drawer } from '../ui/Drawer';
 import { CommandPalette } from '../ui/CommandPalette';
 import { SettingsModal } from './SettingsModal';
+import { ScrollToTopNotch } from '../ui/ScrollToTopNotch';
 import { useKeyboardShortcut } from '../../hooks/useKeyboardShortcut';
 
 export interface AppShellProps {
@@ -53,7 +54,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   const handleNavigate = (route: string, param?: string) => {
     onNavigate(route, param);
     setMobileNavOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // When navigating back to the machine-coding list from a lab, allow MachineCodingPage to scroll directly to the card
+    if (route !== 'machine-coding' || param) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
@@ -148,6 +152,9 @@ export const AppShell: React.FC<AppShellProps> = ({
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* Global Floating Scroll-To-Top Notch */}
+      <ScrollToTopNotch />
     </div>
   );
 };
