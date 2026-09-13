@@ -183,6 +183,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         flexDirection: 'column',
         width: fullWidth ? '100%' : 'auto',
         maxWidth: '100%',
+        zIndex: isOpen ? 60 : undefined,
         ...style,
       }}
       onKeyDown={handleKeyDown}
@@ -264,7 +265,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
             WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid var(--border-strong)',
             borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-lg)',
+            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.16)',
             padding: '4px',
             zIndex: 1050,
             animation: 'fadeIn 120ms ease-out',

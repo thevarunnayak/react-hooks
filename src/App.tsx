@@ -56,12 +56,19 @@ export function App() {
   // Sync with browser URL hash for clean navigation & deep-linking
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      if (hash) {
-        const [route, param, subParam] = hash.split('/');
-        setCurrentRoute(route || 'home');
+      const cleanHash = window.location.hash.replace(/^#\/?/, '');
+      if (cleanHash) {
+        const parts = cleanHash.split('/').filter(Boolean);
+        const route = parts[0] || 'home';
+        const param = parts[1];
+        const subParam = parts[2];
+        setCurrentRoute(route);
         setCurrentParam(param);
         setCurrentSubParam(subParam);
+      } else {
+        setCurrentRoute('home');
+        setCurrentParam(undefined);
+        setCurrentSubParam(undefined);
       }
     };
 
@@ -80,7 +87,7 @@ export function App() {
     setCurrentParam(param);
     setCurrentSubParam(subParam);
     const hashParts = [route, param, subParam].filter(Boolean);
-    window.location.hash = hashParts.join('/');
+    window.location.hash = '#/' + hashParts.join('/');
   };
 
   const toggleBookmark = (hookId: string) => {
@@ -172,14 +179,24 @@ export function App() {
         return <ChallengesPage onNavigate={navigate} />;
 
       case 'challenge-session':
-      case 'challenge-mode':
         return <ChallengeSessionPage onNavigate={navigate} />;
+
+      case 'challenge':
+      case 'challenge-mode':
+        return (
+          <MachineCodingPage
+            onNavigate={navigate}
+            initialProblemId="challenge"
+            initialSubParam={currentParam}
+          />
+        );
 
       case 'machine-coding':
         return (
           <MachineCodingPage
             onNavigate={navigate}
             initialProblemId={currentParam}
+            initialSubParam={currentSubParam}
           />
         );
 

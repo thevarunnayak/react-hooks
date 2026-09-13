@@ -14,6 +14,7 @@ import {
   PanelLeftOpen,
   Layers,
   Terminal,
+  Zap,
 } from 'lucide-react';
 import { HOOKS_CATALOG } from '../../data/hooks';
 import { CUSTOM_HOOKS_CATALOG } from '../../data/custom-hooks/catalog';
@@ -167,8 +168,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {mainNav.map((item) => {
           const isActive =
             currentRoute === item.id ||
-            (item.id === 'challenges' && (currentRoute === 'challenge-session' || currentRoute === 'challenge-mode')) ||
-            (item.id === 'machine-coding' && (currentRoute === 'machine-coding' || MACHINE_CODING_PROBLEMS_BY_ID.has(currentRoute)));
+            (item.id === 'machine-coding' &&
+              (currentRoute === 'machine-coding' ||
+                currentRoute === 'challenge' ||
+                currentRoute === 'challenge-mode' ||
+                MACHINE_CODING_PROBLEMS_BY_ID.has(currentRoute)));
 
           if (isCollapsed) {
             return (

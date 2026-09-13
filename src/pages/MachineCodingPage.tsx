@@ -15,6 +15,7 @@ import { Button } from '../components/ui/Button';
 import { SearchInput } from '../components/ui/SearchInput';
 import { CustomSelect } from '../components/ui/CustomSelect';
 import { MachineCodingLabRunner } from '../components/machineCoding/labs/MachineCodingLabRunner';
+import { ChallengeModeView } from '../components/machineCoding/challenges/ChallengeModeView';
 import {
   Terminal,
   Code2,
@@ -36,8 +37,9 @@ import {
 } from 'lucide-react';
 
 export interface MachineCodingPageProps {
-  onNavigate?: (route: string, param?: string) => void;
+  onNavigate?: (route: string, param?: string, subParam?: string) => void;
   initialProblemId?: string;
+  initialSubParam?: string;
 }
 
 const DIFFICULTY_VARIANTS: Record<MachineCodingDifficulty, BadgeProps['variant']> = {
@@ -56,7 +58,25 @@ const getEstimatedTime = (p: MachineCodingProblem): string => {
 export const MachineCodingPage: React.FC<MachineCodingPageProps> = ({
   onNavigate,
   initialProblemId,
+  initialSubParam,
 }) => {
+  const isChallengeRoute =
+    initialProblemId === 'challenge' ||
+    initialProblemId === 'challenge-mode' ||
+    initialProblemId?.startsWith('challenge-');
+
+  const [activeSection, setActiveSection] = useState<'labs' | 'challenge'>(() =>
+    isChallengeRoute ? 'challenge' : 'labs'
+  );
+
+  useEffect(() => {
+    if (isChallengeRoute) {
+      setActiveSection('challenge');
+    } else if (initialProblemId && MACHINE_CODING_PROBLEMS_BY_ID.has(initialProblemId)) {
+      setActiveSection('labs');
+    }
+  }, [initialProblemId, isChallengeRoute]);
+
   // Check if a specific problem is selected via route / param
   const activeProblem: MachineCodingProblem | null = useMemo(() => {
     if (initialProblemId && MACHINE_CODING_PROBLEMS_BY_ID.has(initialProblemId)) {
@@ -212,6 +232,36 @@ export const MachineCodingPage: React.FC<MachineCodingPageProps> = ({
     currentIndex >= 0 && currentIndex < MACHINE_CODING_PROBLEMS.length - 1
       ? MACHINE_CODING_PROBLEMS[currentIndex + 1]
       : null;
+
+  // ==========================================
+  // VIEW 0: CHALLENGE MODE (Simulated Interview & Test Suites)
+  // ==========================================
+  if (activeSection === 'challenge') {
+    const targetChallengeId =
+      initialSubParam ||
+      (initialProblemId &&
+      initialProblemId !== 'challenge' &&
+      initialProblemId !== 'challenge-mode'
+        ? initialProblemId.replace('challenge-', '')
+        : undefined);
+
+    return (
+      <ChallengeModeView
+        initialChallengeId={targetChallengeId}
+        onNavigateChallenge={(challengeId) => {
+          if (challengeId) {
+            onNavigate?.('machine-coding', 'challenge', challengeId);
+          } else {
+            onNavigate?.('machine-coding', 'challenge');
+          }
+        }}
+        onExitToLabs={() => {
+          setActiveSection('labs');
+          onNavigate?.('machine-coding');
+        }}
+      />
+    );
+  }
 
   // ==========================================
   // VIEW 1: DEDICATED LAB SCREEN (When a problem is selected)
@@ -745,16 +795,70 @@ export const MachineCodingPage: React.FC<MachineCodingPageProps> = ({
     >
       {/* Catalog Hero Section */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Badge variant="primary" size="sm">
-            2026 INTERVIEW ESSENTIALS
-          </Badge>
-          <Badge variant="cyan" size="sm">
-            25 HANDS-ON LABS
-          </Badge>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            100% Client-Side • Zero External APIs
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Badge variant="primary" size="sm">
+              2026 INTERVIEW ESSENTIALS
+            </Badge>
+            <Badge variant="cyan" size="sm">
+              25 HANDS-ON LABS
+            </Badge>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              100% Client-Side • Zero External APIs
+            </span>
+          </div>
+
+          {/* Section Switcher: Labs vs Challenge Mode */}
+          <div
+            style={{
+              display: 'flex',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              padding: 3,
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            <button
+              onClick={() => {
+                setActiveSection('labs');
+                onNavigate?.('machine-coding');
+              }}
+              style={{
+                padding: '6px 14px',
+                border: 'none',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                borderRadius: 'var(--radius-xs)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              25 Hands-On Labs
+            </button>
+            <button
+              onClick={() => {
+                setActiveSection('challenge');
+                onNavigate?.('machine-coding', 'challenge');
+              }}
+              style={{
+                padding: '6px 14px',
+                border: 'none',
+                background: 'none',
+                color: 'var(--text-muted)',
+                borderRadius: 'var(--radius-xs)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Zap size={13} style={{ color: 'var(--accent-warning)' }} />
+              <span>⚡ Challenge Mode (Simulator)</span>
+            </button>
+          </div>
         </div>
 
         <h1
@@ -781,6 +885,60 @@ export const MachineCodingPage: React.FC<MachineCodingPageProps> = ({
         >
           If you're preparing for a Frontend interview in 2026, don't just revise React concepts. Practice building real features from scratch. Select any lab below to open its dedicated workspace with live interactive execution, production TypeScript code, and architecture breakdowns.
         </p>
+
+        {/* Challenge Mode Spotlight Banner */}
+        <Card
+          variant="elevated"
+          padding="md"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            borderRadius: 'var(--radius-lg)',
+            marginTop: 4,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--accent-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                flexShrink: 0,
+              }}
+            >
+              <Zap size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                Practice Like a Real Interview in Challenge Mode
+              </div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                37 challenges with timed countdowns, automated test suites, and hidden edge cases.
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            iconRight={<ArrowRight size={14} />}
+            onClick={() => {
+              setActiveSection('challenge');
+              onNavigate?.('machine-coding', 'challenge');
+            }}
+          >
+            Enter Challenge Mode
+          </Button>
+        </Card>
       </div>
 
       {/* Filter & Search Bar */}
